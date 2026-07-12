@@ -1,0 +1,148 @@
+# SwagRestartScheduler - Main Configuration
+# Developer: swag617
+
+# General settings
+general:
+  # Use spigot().restart() when true; falls back to getServer().shutdown() when false
+  use-spigot-restart: true
+  # Message prefix shown in console log lines
+  log-prefix: "[SwagRestartScheduler]"
+  # How often (in seconds) the scheduler checks for upcoming restarts
+  # This does not affect warning precision — warnings are wall-clock accurate
+  check-interval-seconds: 10
+
+# Warning broadcast configuration
+warnings:
+  enabled: true
+  # Each entry fires a broadcast when the countdown reaches that many seconds remaining.
+  # Entries are sorted descending automatically — order here does not matter.
+  intervals:
+    - seconds: 1800
+      message: "<gold>⚠</gold> <yellow>Server restart in <white>30 minutes</white>!"
+      title: null
+      subtitle: null
+      sound: null
+
+    - seconds: 900
+      message: "<gold>⚠</gold> <yellow>Server restart in <white>15 minutes</white>!"
+      title: null
+      subtitle: null
+      sound: null
+
+    - seconds: 300
+      message: "<gold>⚠</gold> <yellow>Server restart in <white>5 minutes</white>!"
+      title: null
+      subtitle: null
+      sound: null
+
+    - seconds: 60
+      message: "<red>⚠</red> <yellow>Server restart in <white>1 minute</white>! Save your progress!"
+      title: "<red><bold>RESTARTING SOON"
+      subtitle: "<yellow>1 minute remaining"
+      sound: null
+
+    - seconds: 30
+      message: "<red>⚠</red> <yellow>Server restart in <white>30 seconds</white>!"
+      title: "<red><bold>RESTARTING SOON"
+      subtitle: "<yellow>30 seconds remaining"
+      sound: null
+
+    - seconds: 10
+      message: "<dark_red>Server restarting in <bold>10 seconds</bold>!"
+      title: "<dark_red><bold>RESTARTING"
+      subtitle: "<red>10 seconds!"
+      sound: "ENTITY_ENDER_DRAGON_GROWL"
+
+  # Show action bar countdown when <= this many seconds remain (0 to disable)
+  action-bar-threshold: 60
+  # Action bar format — use {seconds} as placeholder
+  action-bar-format: "<red><bold>Restarting in {seconds}s"
+
+# Built-in backup system — creates a zip of your world folders before each restart
+backup:
+  enabled: false
+  # Folders to back up (relative to server root directory)
+  include:
+    - "world"
+    - "world_nether"
+    - "world_the_end"
+  # Where to save backups (relative to server root, or absolute path)
+  destination: "plugins/SwagRestartScheduler/backups"
+  # Max backups to keep — oldest are deleted automatically (0 = keep forever)
+  max_backups: 5
+  # Zip the backup (true) or copy the folders as-is (false)
+  compress: true
+  # Enable maintenance/whitelist before backup starts so no players join mid-backup
+  # Uses the Maintenance plugin if installed, otherwise falls back to /whitelist on
+  maintenance_mode: true
+
+# Grace period — delay restarts while players are in combat or protected worlds
+grace_period:
+  enabled: false
+  # Maximum time (minutes) to delay before forcing the restart regardless of conditions
+  max_delay_minutes: 15
+  conditions:
+    # Delay if any player is currently in combat (requires CombatLogX soft-dep)
+    combat: true
+    # Delay if any player is in one of these worlds (supports * wildcard)
+    worlds:
+      - "world_boss"
+      - "dungeon_*"
+  # How often (seconds) to re-check conditions once a delay is active
+  check_interval_seconds: 5
+  # Message broadcast to all players when the restart is delayed
+  message: "<yellow>Restart delayed - players in protected area"
+
+# Pre-restart commands — run console commands at specified intervals before restart
+pre_restart:
+  enabled: true
+  # Each entry: delay = seconds before restart, command = console command to run
+  commands:
+    - delay: 300
+      command: "broadcast &cServer restarting in 5 minutes!"
+      executor: "console"
+    - delay: 60
+      command: "broadcast &cServer restarting in 1 minute! Save your progress!"
+      executor: "console"
+    - delay: 5
+      command: "save-all"
+      executor: "console"
+
+# Performance-based restart triggers
+# Monitors TPS and schedules a restart when performance degrades
+performance_triggers:
+  enabled: false
+  # TPS value below which performance is considered degraded (0-20)
+  tps_threshold: 15.0
+  # How many consecutive minutes TPS must stay below the threshold before triggering
+  duration_minutes: 5
+  # Action to take when triggered:
+  #   "schedule"  — schedules a restart 5 minutes out (allows warning messages to fire)
+  #   "immediate" — restarts within 3 seconds
+  action: "schedule"
+  # Reason string shown in restart log and broadcast
+  reason: "Performance degradation detected"
+  # Minimum minutes between consecutive trigger fires (prevents rapid restart loops)
+  cooldown_minutes: 60
+
+# Web config editor — served through SwagAPI's shared web panel (no port of its own)
+web-editor:
+  # Whether to register the config editor with SwagAPI's IWebService.
+  # URL: http://<swagapi-bind-ip>:<swagapi-port>/swagapi/swagrestartscheduler/
+  enabled: true
+
+# Discord notifications — requires DiscordUtils soft-dep
+discord:
+  enabled: true
+  # The webhook ID configured in your DiscordUtils setup
+  webhook_id: "your_webhook_id"
+  notifications:
+    scheduled_restart:
+      enabled: true
+      message: "Server restarting in {time}. Players online: {player_count}"
+    manual_restart:
+      enabled: true
+      message: "Manual restart — {reason}. Initiated by: {initiator}"
+    server_online:
+      enabled: true
+      message: "Server has restarted successfully!"

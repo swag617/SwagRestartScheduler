@@ -1,0 +1,29 @@
+# SwagRestartScheduler - Schedules Configuration
+# Developer: swag617
+#
+# days: valid values are MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
+# times: supports multiple formats — all of the following are valid:
+#   "3 AM"     "12 PM"    (12-hour, whole hour)
+#   "3:30 AM"  "3:30 PM"  (12-hour with minutes)
+#   "03:00"    "15:30"    (24-hour)
+# timezone: any valid Java ZoneId string (e.g. "America/New_York", "UTC", "Europe/London")
+# priority: lower number = higher priority (1 = highest). Used as tiebreaker when two schedules
+#            have a next restart within 30 seconds of each other.
+
+schedules:
+  weekday:
+    enabled: true
+    timezone: "America/New_York"
+    days: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]
+    times:
+      - "3 AM"
+      - "3 PM"
+    priority: 1
+
+  weekend:
+    enabled: true
+    timezone: "America/New_York"
+    days: [SATURDAY, SUNDAY]
+    times:
+      - "5 AM"
+    priority: 1

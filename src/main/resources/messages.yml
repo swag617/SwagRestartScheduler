@@ -1,0 +1,54 @@
+# SwagRestartScheduler - Messages Configuration
+# Developer: swag617
+#
+# All messages support MiniMessage formatting.
+# Available placeholders are noted per-message.
+
+prefix: "<dark_gray>[<aqua>Restart<dark_gray>]</dark_gray> "
+
+# /restart status
+status-no-pending: "<gray>No restart is currently scheduled."
+# Placeholders: {time} = human-readable time string, {source} = schedule name or "manual"
+status-pending: "<gray>Next restart: <white>{time}</white> <dark_gray>(<gray>source: <white>{source}</white><dark_gray>)"
+
+# /restart schedules
+schedules-header: "<aqua><bold>Configured Schedules</bold></aqua>"
+# Placeholders: {name}, {enabled}, {timezone}, {days}, {times}, {next}
+schedules-entry: "  <white>{name}</white> <dark_gray>|</dark_gray> <gray>enabled: <white>{enabled}</white> <dark_gray>|</dark_gray> tz: <white>{timezone}</white> <dark_gray>|</dark_gray> days: <white>{days}</white> <dark_gray>|</dark_gray> times: <white>{times}</white> <dark_gray>|</dark_gray> next: <white>{next}</white>"
+schedules-none: "<gray>No schedules configured."
+
+# /restart now
+restart-initiated: "<green>Server restart initiated. <gray>Reason: <white>{reason}"
+restart-initiated-console: "<green>Server restart initiated by <white>{initiator}</white>. Reason: <white>{reason}"
+
+# /restart in
+# Placeholders: {time} = human-readable duration
+restart-in-initiated: "<green>Server will restart in <white>{time}</white>."
+restart-in-bad-format: "<red>Invalid time format. Examples: <white>30m</white>, <white>1h</white>, <white>1h30m</white>, <white>45s</white>"
+restart-in-too-short: "<red>Time must be at least 10 seconds."
+
+# /restart cancel
+cancel-success: "<green>Scheduled restart has been cancelled."
+cancel-no-pending: "<gray>There is no pending manual restart to cancel."
+
+# /restart reload
+reload-success: "<green>Configuration reloaded successfully."
+reload-failed: "<red>Reload failed: <white>{error}</white>. Previous configuration retained."
+
+# Broadcast sent to all players when restart is cancelled
+broadcast-cancelled: "<gold>⚠</gold> <yellow>The scheduled server restart has been <green>cancelled</green>."
+
+# Broadcast sent when a manual restart is scheduled
+# Placeholders: {time} = human-readable duration
+broadcast-restart-in: "<gold>⚠</gold> <yellow>Server will restart in <white>{time}</white>!"
+
+# No permission
+no-permission: "<red>You do not have permission to use this command."
+
+# Must be player (for player-only sub-commands, currently none)
+must-be-player: "<red>This command can only be run by a player."
+
+# Usage / unknown sub-command
+unknown-subcommand: "<red>Unknown sub-command. Usage: <white>/restart <now|in|cancel|schedules|status|reload>"
+usage-restart-in: "<red>Usage: <white>/restart in <time> [reason]"
+usage-restart-now: "<red>Usage: <white>/restart now [reason]"

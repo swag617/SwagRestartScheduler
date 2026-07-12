@@ -1,0 +1,37 @@
+name: SwagRestartScheduler
+version: 2.0.0
+main: com.swag617.restartsched.SwagRestartScheduler
+api-version: 1.20
+softdepend: [DiscordUtils, PlaceholderAPI, WorldGuard, CombatLogX, Vault, SwagAPI]
+
+commands:
+  srestart:
+    description: Restart management commands
+    usage: /srestart <now|in|cancel|schedules|status|reload|gui>
+    permission: swagrestart.command
+
+permissions:
+  swagrestart.command:
+    description: Base restart command permission
+    default: op
+  swagrestart.command.now:
+    description: Restart server immediately or on a timer
+    default: op
+  swagrestart.command.cancel:
+    description: Cancel pending restart
+    default: op
+  swagrestart.command.reload:
+    description: Reload plugin configuration
+    default: op
+  swagrestart.gui:
+    description: Open the in-game restart scheduler GUI
+    default: op
+  swagrestart.bypass.grace:
+    description: Bypass grace period delays
+    default: op
+  swagrestart.command.logs:
+    description: Access restart log commands (e.g. export)
+    default: op
+  swagrestart.web:
+    description: View the web editor URL in-game
+    default: op

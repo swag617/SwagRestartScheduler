@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwagRestartScheduler — Config Editor</title>
+<style>
+  /* ============================================================
+     Base / layout
+  ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #1a1a2e;
+    --card:     #16213e;
+    --surface2: #0f3460;
+    --accent:   #e94560;
+    --accent2:  #c73652;
+    --text:     #e0e0e0;
+    --muted:    #8888aa;
+    --border:   #2a2a4a;
+    --input:    #0d1b35;
+    --success:  #3ddc84;
+    --danger:   #e94560;
+    --radius:   6px;
+    --font:     'Segoe UI', system-ui, sans-serif;
+  }
+
+  html { font-size: 15px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 0 0 60px;
+  }
+
+  /* ---- Header ---- */
+  header {
+    background: var(--card);
+    border-bottom: 2px solid var(--accent);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: .5px; }
+  header span.version { color: var(--muted); font-size: .8rem; }
+  .header-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ---- Tab nav ---- */
+  nav.tabs {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    overflow-x: auto;
+    padding: 0 16px;
+  }
+  nav.tabs button {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: .9rem;
+    padding: 12px 18px;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ---- Main content ---- */
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ---- Cards ---- */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: var(--surface2);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: .9rem;
+  }
+  .card-header .card-title { flex: 1; }
+  .card-body { padding: 16px; }
+
+  /* ---- Form fields ---- */
+  .field-row {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .field-row label { color: var(--muted); font-size: .85rem; }
+
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    background: var(--input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: .88rem;
+    padding: 6px 10px;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+
+  input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 16px; height: 16px;
+    cursor: pointer;
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: .85rem;
+    font-weight: 600;
+    padding: 7px 14px;
+    transition: background .15s, transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary { background: var(--surface2); color: var(--text); }
+  .btn-secondary:hover { background: #164080; }
+  .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn-sm { padding: 4px 9px; font-size: .78rem; }
+  .btn-success { background: #1f6b44; color: var(--success); }
+  .btn-success:hover { background: #217d51; }
+
+  /* ---- List items ---- */
+  .list-item {
+    background: var(--input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .list-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,.03);
+    cursor: pointer;
+    user-select: none;
+  }
+  .list-item-header .item-title { flex: 1; font-weight: 600; font-size: .9rem; }
+  .list-item-body { padding: 14px 12px; border-top: 1px solid var(--border); }
+  .collapse-indicator { color: var(--muted); font-size: .75rem; }
+
+  /* ---- Days checkboxes ---- */
+  .days-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .day-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: .82rem;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: border-color .12s;
+  }
+  .day-chip.selected { border-color: var(--accent); color: var(--accent); }
+  .day-chip input { display: none; }
+
+  /* ---- Times list ---- */
+  .times-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .time-chip {
+    background: var(--surface2);
+    border-radius: 14px;
+    padding: 3px 10px;
+    font-size: .82rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .time-chip .remove-time {
+    color: var(--muted);
+    cursor: pointer;
+    font-size: .9rem;
+    line-height: 1;
+  }
+  .time-chip .remove-time:hover { color: var(--danger); }
+
+  /* ---- Commands list ---- */
+  .cmd-row {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  /* ---- Toast ---- */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: .88rem;
+    max-width: 320px;
+    opacity: 0;
+    padding: 12px 16px;
+    pointer-events: none;
+    transition: opacity .25s;
+    z-index: 9999;
+  }
+  #toast.show { opacity: 1; }
+  #toast.success { border-color: var(--success); }
+  #toast.error   { border-color: var(--danger); }
+
+  /* ---- Misc ---- */
+  hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .section-label {
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .add-row { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
+  .inline-flex { display: flex; align-items: center; gap: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ========================================================
+     HEADER
+======================================================== -->
+<header>
+  <div>
+    <h1>SwagRestartScheduler</h1>
+    <span class="version">Config Editor v3</span>
+  </div>
+  <div class="header-actions">
+    <span id="whoami" style="color:var(--muted);font-size:.8rem;"></span>
+    <a id="logoutLink" href="/logout" class="btn btn-secondary btn-sm" style="display:none;text-decoration:none;">Logout</a>
+    <label class="btn btn-secondary" title="Import YAML files">
+      Import
+      <input type="file" id="importFile" accept=".yml,.yaml" multiple style="display:none">
+    </label>
+    <button class="btn btn-primary" id="btnExportConfig">Export config.yml</button>
+    <button class="btn btn-primary" id="btnExportSchedules">Export schedules.yml</button>
+    <button class="btn btn-success" id="btnSaveLocal">Save to Browser</button>
+  </div>
+</header>
+
+<!-- ========================================================
+     TAB NAV
+======================================================== -->
+<nav class="tabs">
+  <button class="active" data-tab="schedules">Schedules</button>
+  <button data-tab="warnings">Warnings</button>
+  <button data-tab="grace">Grace Period</button>
+  <button data-tab="performance">Performance Triggers</button>
+  <button data-tab="prerestart">Pre-Restart Commands</button>
+  <button data-tab="backup">Backup</button>
+</nav>
+
+<!-- ========================================================
+     MAIN CONTENT
+======================================================== -->
+<main>
+
+  <!-- ======================================================
+       TAB: SCHEDULES
+  ====================================================== -->
+  <div class="tab-panel active" id="tab-schedules">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h2 style="font-size:1.05rem;">Restart Schedules</h2>
+      <button class="btn btn-primary btn-sm" id="btnAddSchedule">+ Add Schedule</button>
+    </div>
+    <div id="schedulesList"></div>
+  </div>
+
+  <!-- ======================================================
+       TAB: WARNINGS
+  ====================================================== -->
+  <div class="tab-panel" id="tab-warnings">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h2 style="font-size:1.05rem;">Warning Intervals</h2>
+      <button class="btn btn-primary btn-sm" id="btnAddWarning">+ Add Warning</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Action Bar Settings</span></div>
+      <div class="card-body">
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="warnEnabled">
+        </div>
+        <div class="field-row">
+          <label>Action Bar Threshold (s)</label>
+          <input type="number" id="warnActionBarThreshold" min="0" max="3600">
+        </div>
+        <div class="field-row">
+          <label>Action Bar Format</label>
+          <input type="text" id="warnActionBarFormat">
+        </div>
+      </div>
+    </div>
+
+    <div id="warningsList"></div>
+  </div>
+
+  <!-- ======================================================
+       TAB: GRACE PERIOD
+  ====================================================== -->
+  <div class="tab-panel" id="tab-grace">
+    <h2 style="font-size:1.05rem;margin-bottom:14px;">Grace Period</h2>
+    <div class="card">
+      <div class="card-body">
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="graceEnabled">
+        </div>
+        <div class="field-row">
+          <label>Max Delay (minutes)</label>
+          <input type="number" id="graceMaxDelay" min="1" max="1440">
+        </div>
+        <div class="field-row">
+          <label>Check Interval (seconds)</label>
+          <input type="number" id="graceCheckInterval" min="1" max="300">
+        </div>
+        <div class="field-row">
+          <label>Delay Message</label>
+          <input type="text" id="graceMessage">
+        </div>
+
+        <hr>
+        <div class="section-label">Conditions</div>
+
+        <div class="field-row">
+          <label>Combat Delay</label>
+          <div class="inline-flex">
+            <input type="checkbox" id="graceCombat">
+            <span style="font-size:.82rem;color:var(--muted);">Requires CombatLogX</span>
+          </div>
+        </div>
+
+        <div class="field-row" style="align-items:flex-start">
+          <label style="padding-top:6px;">Protected Worlds</label>
+          <div>
+            <div id="graceWorldsList" style="margin-bottom:6px;"></div>
+            <div class="add-row">
+              <input type="text" id="graceNewWorld" placeholder="world_boss or dungeon_*" style="width:220px;">
+              <button class="btn btn-secondary btn-sm" id="btnAddGraceWorld">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       TAB: PERFORMANCE TRIGGERS
+  ====================================================== -->
+  <div class="tab-panel" id="tab-performance">
+    <h2 style="font-size:1.05rem;margin-bottom:14px;">Performance Triggers</h2>
+    <div class="card">
+      <div class="card-body">
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="perfEnabled">
+        </div>
+        <div class="field-row">
+          <label>TPS Threshold</label>
+          <input type="number" id="perfTpsThreshold" min="1" max="20" step="0.5">
+        </div>
+        <div class="field-row">
+          <label>Duration (minutes)</label>
+          <input type="number" id="perfDurationMinutes" min="1" max="60">
+        </div>
+        <div class="field-row">
+          <label>Action</label>
+          <select id="perfAction">
+            <option value="schedule">schedule — queue restart 5 minutes out</option>
+            <option value="immediate">immediate — restart within 3 seconds</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label>Reason</label>
+          <input type="text" id="perfReason">
+        </div>
+        <div class="field-row">
+          <label>Cooldown (minutes)</label>
+          <input type="number" id="perfCooldown" min="1" max="1440">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       TAB: PRE-RESTART COMMANDS
+  ====================================================== -->
+  <div class="tab-panel" id="tab-prerestart">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h2 style="font-size:1.05rem;">Pre-Restart Commands</h2>
+      <button class="btn btn-primary btn-sm" id="btnAddCmd">+ Add Command</button>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="preEnabled">
+        </div>
+      </div>
+    </div>
+    <div id="cmdList"></div>
+  </div>
+
+  <!-- ======================================================
+       TAB: BACKUP
+  ====================================================== -->
+  <div class="tab-panel" id="tab-backup">
+    <h2 style="font-size:1.05rem;margin-bottom:14px;">Backup Settings</h2>
+
+    <!-- Card 1: General -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">General</span></div>
+      <div class="card-body">
+        <div class="field-row">
+          <label>Enable Backup System</label>
+          <input type="checkbox" id="backupEnabled">
+        </div>
+        <div class="field-row">
+          <label>Compress as .zip</label>
+          <input type="checkbox" id="backupCompress">
+        </div>
+        <div class="field-row">
+          <label>Enable Maintenance Mode before backup</label>
+          <div>
+            <input type="checkbox" id="backupMaintenanceMode">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Uses Maintenance plugin if installed, otherwise falls back to /whitelist on</div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Max Backups to Keep</label>
+          <div>
+            <input type="number" id="backupMaxBackups" min="0" style="width:120px;">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">0 = keep forever</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: World Folders -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">World Folders</span></div>
+      <div class="card-body">
+        <div class="section-label">Folders to Include</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">Paths relative to server root (e.g. world, world_nether)</div>
+        <div id="backupIncludeList" style="margin-bottom:6px;"></div>
+        <div class="add-row">
+          <input type="text" id="backupNewInclude" placeholder="e.g. world_nether" style="width:220px;">
+          <button class="btn btn-secondary btn-sm" id="btnAddBackupInclude">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Destination -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Destination</span></div>
+      <div class="card-body">
+        <div class="field-row">
+          <label>Backup Destination Path</label>
+          <div>
+            <input type="text" id="backupDestination">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Relative to server root, or absolute path</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ======================================================
+     TOAST
+====================================================== -->
+<div id="toast"></div>
+
+<!-- ======================================================
+     JAVASCRIPT
+====================================================== -->
+<script>
+'use strict';
+
+// ============================================================
+//  Identity (SwagAPI shared session)
+// ============================================================
+// This page is served through SwagAPI's shared web panel — by the time it loads,
+// SwagAPI has already authenticated the visitor (or auth is disabled entirely).
+// See /swagapi/auth/status and /login?redirect=... for the shared auth contract.
+fetch('/swagapi/auth/status', {credentials: 'include'})
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.username) return;
+    var who = document.getElementById('whoami');
+    var logout = document.getElementById('logoutLink');
+    if (who) who.textContent = 'Signed in as ' + d.username;
+    if (logout) logout.style.display = '';
+  })
+  .catch(function() {});
+
+// Central fetch helper, kept for consistency with other Swag dashboards. This editor
+// currently has no server-side API of its own (all data lives in localStorage / the
+// import-export flow below), but any future fetch() to this plugin's own backend should
+// go through this helper so an expired session bounces the user to the shared login page
+// instead of failing silently.
+function apiFetch(path, options) {
+  var opts = options || {};
+  opts.credentials = 'include';
+  return fetch(path, opts).then(function(r) {
+    if (r.status === 401 || r.status === 302) {
+      window.location = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+      throw new Error('Unauthorized');
+    }
+    return r;
+  });
+}
+
+// ============================================================
+//  State
+// ============================================================
+var state = {
+  schedules: [],          // [{id, name, enabled, timezone, days, times, priority}]
+  warnings: {
+    enabled: true,
+    actionBarThreshold: 60,
+    actionBarFormat: '<red><bold>Restarting in {seconds}s',
+    intervals: []         // [{id, seconds, message, title, subtitle, sound}]
+  },
+  grace: {
+    enabled: false,
+    maxDelayMinutes: 15,
+    checkIntervalSeconds: 5,
+    message: '<yellow>Restart delayed - players in protected area',
+    combat: true,
+    worlds: []
+  },
+  performance: {
+    enabled: false,
+    tpsThreshold: 15.0,
+    durationMinutes: 5,
+    action: 'schedule',
+    reason: 'Performance degradation detected',
+    cooldownMinutes: 60
+  },
+  prerestart: {
+    enabled: true,
+    commands: []          // [{id, delay, command, executor}]
+  },
+  backup: {
+    enabled: false,
+    compress: true,
+    maintenanceMode: true,
+    maxBackups: 5,
+    include: ['world', 'world_nether', 'world_the_end'],
+    destination: 'plugins/SwagRestartScheduler/backups'
+  }
+};
+
+var nextId = 1;
+function uid() { return nextId++; }
+
+// ============================================================
+//  Defaults
+// ============================================================
+function defaultSchedule() {
+  return {
+    id: uid(),
+    name: 'new_schedule',
+    enabled: true,
+    timezone: 'UTC',
+    days: [],
+    times: [],
+    priority: 1
+  };
+}
+
+function defaultWarning() {
+  return {
+    id: uid(),
+    seconds: 300,
+    message: '<gold>Server restart in 5 minutes!',
+    title: '',
+    subtitle: '',
+    sound: ''
+  };
+}
+
+function defaultCommand() {
+  return {
+    id: uid(),
+    delay: 60,
+    command: '',
+    executor: 'console'
+  };
+}
+
+// ============================================================
+//  localStorage persistence
+// ============================================================
+var LS_KEY = 'swagresched_config_v3';
+
+function saveToLocal() {
+  collectFormValues();
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    toast('Saved to browser storage.', 'success');
+  } catch(e) {
+    toast('Could not save: ' + e.message, 'error');
+  }
+}
+
+function loadFromLocal() {
+  var raw = localStorage.getItem(LS_KEY);
+  if (!raw) return false;
+  try {
+    var parsed = JSON.parse(raw);
+    // Merge loaded data into state
+    state.schedules   = parsed.schedules   || [];
+    state.warnings    = Object.assign({}, state.warnings,    parsed.warnings    || {});
+    state.grace       = Object.assign({}, state.grace,       parsed.grace       || {});
+    state.performance = Object.assign({}, state.performance, parsed.performance || {});
+    state.prerestart  = Object.assign({}, state.prerestart,  parsed.prerestart  || {});
+    state.backup      = Object.assign({}, state.backup,      parsed.backup      || {});
+    // Make sure intervals and commands arrays exist
+    if (!state.warnings.intervals) state.warnings.intervals = [];
+    if (!state.prerestart.commands) state.prerestart.commands = [];
+    if (!state.grace.worlds) state.grace.worlds = [];
+    if (!state.backup.include) state.backup.include = [];
+    if (!state.schedules) state.schedules = [];
+    return true;
+  } catch(e) {
+    console.warn('Could not parse saved state:', e);
+    return false;
+  }
+}
+
+// ============================================================
+//  Collect form values back into state (before export/save)
+// ============================================================
+function collectFormValues() {
+  // Warnings global settings
+  state.warnings.enabled             = document.getElementById('warnEnabled').checked;
+  state.warnings.actionBarThreshold  = parseInt(document.getElementById('warnActionBarThreshold').value, 10) || 60;
+  state.warnings.actionBarFormat     = document.getElementById('warnActionBarFormat').value;
+
+  // Grace period
+  state.grace.enabled               = document.getElementById('graceEnabled').checked;
+  state.grace.maxDelayMinutes       = parseInt(document.getElementById('graceMaxDelay').value, 10) || 15;
+  state.grace.checkIntervalSeconds  = parseInt(document.getElementById('graceCheckInterval').value, 10) || 5;
+  state.grace.message               = document.getElementById('graceMessage').value;
+  state.grace.combat                = document.getElementById('graceCombat').checked;
+
+  // Performance
+  state.performance.enabled           = document.getElementById('perfEnabled').checked;
+  state.performance.tpsThreshold      = parseFloat(document.getElementById('perfTpsThreshold').value) || 15.0;
+  state.performance.durationMinutes   = parseInt(document.getElementById('perfDurationMinutes').value, 10) || 5;
+  state.performance.action            = document.getElementById('perfAction').value;
+  state.performance.reason            = document.getElementById('perfReason').value;
+  state.performance.cooldownMinutes   = parseInt(document.getElementById('perfCooldown').value, 10) || 60;
+
+  // Pre-restart enabled toggle
+  state.prerestart.enabled = document.getElementById('preEnabled').checked;
+
+  // Backup settings
+  state.backup.enabled         = document.getElementById('backupEnabled').checked;
+  state.backup.compress        = document.getElementById('backupCompress').checked;
+  state.backup.maintenanceMode = document.getElementById('backupMaintenanceMode').checked;
+  state.backup.maxBackups      = parseInt(document.getElementById('backupMaxBackups').value, 10) || 0;
+  state.backup.destination     = document.getElementById('backupDestination').value;
+  // backup.include is managed in real-time via add/remove buttons
+
+  // Per-item fields (schedules, warnings intervals, commands) are collected in real-time
+  // via their own input event handlers, but we do a final pass here just in case.
+  collectSchedules();
+  collectWarningIntervals();
+  collectCommands();
+}
+
+function collectSchedules() {
+  state.schedules.forEach(function(sched) {
+    var el = document.getElementById('sched-' + sched.id);
+    if (!el) return;
+    sched.name     = el.querySelector('[data-field="name"]').value.trim();
+    sched.enabled  = el.querySelector('[data-field="enabled"]').checked;
+    sched.timezone = el.querySelector('[data-field="timezone"]').value.trim();
+    sched.priority = parseInt(el.querySelector('[data-field="priority"]').value, 10) || 1;
+    // days and times are managed via chip UI, already updated in state
+  });
+}
+
+function collectWarningIntervals() {
+  state.warnings.intervals.forEach(function(w) {
+    var el = document.getElementById('warn-' + w.id);
+    if (!el) return;
+    w.seconds  = parseInt(el.querySelector('[data-field="seconds"]').value, 10) || 0;
+    w.message  = el.querySelector('[data-field="message"]').value;
+    w.title    = el.querySelector('[data-field="title"]').value;
+    w.subtitle = el.querySelector('[data-field="subtitle"]').value;
+    w.sound    = el.querySelector('[data-field="sound"]').value;
+  });
+}
+
+function collectCommands() {
+  state.prerestart.commands.forEach(function(cmd) {
+    var el = document.getElementById('cmd-' + cmd.id);
+    if (!el) return;
+    cmd.delay    = parseInt(el.querySelector('[data-field="delay"]').value, 10) || 0;
+    cmd.command  = el.querySelector('[data-field="command"]').value;
+    cmd.executor = el.querySelector('[data-field="executor"]').value;
+  });
+}
+
+// ============================================================
+//  Render helpers
+// ============================================================
+
+/* ---- Schedules ---- */
+function renderSchedules() {
+  var container = document.getElementById('schedulesList');
+  container.innerHTML = '';
+  state.schedules.forEach(function(sched) {
+    container.appendChild(buildScheduleItem(sched));
+  });
+}
+
+function buildScheduleItem(sched) {
+  var wrap = document.createElement('div');
+  wrap.className = 'list-item';
+  wrap.id = 'sched-' + sched.id;
+
+  var DAYS_ALL = ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'];
+  var DAYS_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  var daysHtml = DAYS_ALL.map(function(d, i) {
+    var sel = sched.days.indexOf(d) >= 0 ? 'selected' : '';
+    return '<label class="day-chip ' + sel + '" data-day="' + d + '">'
+         + '<input type="checkbox" ' + (sel ? 'checked' : '') + '>'
+         + DAYS_SHORT[i] + '</label>';
+  }).join('');
+
+  var timesHtml = sched.times.map(function(t) {
+    return '<span class="time-chip">' + escHtml(t)
+         + '<span class="remove-time" data-time="' + escHtml(t) + '" title="Remove">x</span>'
+         + '</span>';
+  }).join('');
+
+  var TIMEZONES = [
+    'UTC','America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+    'America/Sao_Paulo','Europe/London','Europe/Paris','Europe/Berlin','Europe/Moscow',
+    'Asia/Tokyo','Asia/Shanghai','Asia/Kolkata','Asia/Dubai','Australia/Sydney'
+  ];
+  var tzOptions = TIMEZONES.map(function(tz) {
+    return '<option value="' + tz + '" ' + (sched.timezone === tz ? 'selected' : '') + '>'
+         + tz + '</option>';
+  }).join('');
+
+  wrap.innerHTML =
+    '<div class="list-item-header">'
+    + '<span class="item-title">' + escHtml(sched.name) + '</span>'
+    + '<span class="collapse-indicator">&#9660;</span>'
+    + '<button class="btn btn-danger btn-sm remove-schedule" data-id="' + sched.id + '">Remove</button>'
+    + '</div>'
+    + '<div class="list-item-body">'
+    +   '<div class="field-row"><label>Name</label>'
+    +     '<input type="text" data-field="name" value="' + escHtml(sched.name) + '"></div>'
+    +   '<div class="field-row"><label>Enabled</label>'
+    +     '<input type="checkbox" data-field="enabled" ' + (sched.enabled ? 'checked' : '') + '></div>'
+    +   '<div class="field-row"><label>Timezone</label>'
+    +     '<select data-field="timezone">' + tzOptions + '</select></div>'
+    +   '<div class="field-row"><label>Priority</label>'
+    +     '<input type="number" data-field="priority" value="' + sched.priority + '" min="1" max="99"></div>'
+    +   '<div class="field-row" style="align-items:flex-start"><label style="padding-top:4px">Days</label>'
+    +     '<div class="days-grid">' + daysHtml + '</div></div>'
+    +   '<div class="field-row" style="align-items:flex-start"><label style="padding-top:6px">Times</label>'
+    +     '<div>'
+    +       '<div class="times-list" id="times-' + sched.id + '">' + timesHtml + '</div>'
+    +       '<div class="add-row">'
+    +         '<input type="text" class="new-time-input" placeholder="e.g. 3 AM, 3:30 PM, 15:00" style="width:190px;">'
+    +         '<button class="btn btn-secondary btn-sm add-time-btn">Add Time</button>'
+    +       '</div>'
+    +       '<small style="color:var(--muted)">Formats: "3 AM", "3:30 PM", "15:00"</small>'
+    +     '</div></div>'
+    + '</div>';
+
+  // Toggle collapse
+  var header = wrap.querySelector('.list-item-header');
+  var body   = wrap.querySelector('.list-item-body');
+  header.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-schedule') || e.target.closest('.btn')) return;
+    body.style.display = body.style.display === 'none' ? '' : 'none';
+    var ind = header.querySelector('.collapse-indicator');
+    ind.innerHTML = body.style.display === 'none' ? '&#9654;' : '&#9660;';
+  });
+
+  // Remove button
+  wrap.querySelector('.remove-schedule').addEventListener('click', function() {
+    state.schedules = state.schedules.filter(function(s) { return s.id !== sched.id; });
+    renderSchedules();
+  });
+
+  // Day chips
+  wrap.querySelectorAll('.day-chip').forEach(function(chip) {
+    chip.addEventListener('click', function(e) {
+      if (e.target.tagName === 'INPUT') return; // let default tick, handle below
+      var cb = chip.querySelector('input');
+      cb.checked = !cb.checked;
+      toggleDay(sched, chip.dataset.day, cb.checked);
+      chip.classList.toggle('selected', cb.checked);
+    });
+    chip.querySelector('input').addEventListener('change', function(e) {
+      toggleDay(sched, chip.dataset.day, e.target.checked);
+      chip.classList.toggle('selected', e.target.checked);
+    });
+  });
+
+  // Name field — update list-item header in real time
+  wrap.querySelector('[data-field="name"]').addEventListener('input', function() {
+    wrap.querySelector('.item-title').textContent = this.value || '(unnamed)';
+    sched.name = this.value;
+  });
+
+  // Add time button
+  wrap.querySelector('.add-time-btn').addEventListener('click', function() {
+    var input = wrap.querySelector('.new-time-input');
+    var val = input.value.trim();
+    if (!parseScheduleTime(val)) { toast('Invalid time format. Use "3 AM", "3:30 PM", or "15:00".', 'error'); return; }
+    if (sched.times.indexOf(val) >= 0) { toast('Time already in list.', 'error'); return; }
+    sched.times.push(val);
+    refreshTimesList(wrap, sched);
+    input.value = '';
+  });
+
+  // Remove time chips (delegated)
+  wrap.querySelector('.times-list').addEventListener('click', function(e) {
+    var rm = e.target.closest('.remove-time');
+    if (!rm) return;
+    var t = rm.dataset.time;
+    sched.times = sched.times.filter(function(x) { return x !== t; });
+    refreshTimesList(wrap, sched);
+  });
+
+  return wrap;
+}
+
+/**
+ * Returns true if the given string is a valid schedule time in one of three formats:
+ *   "3 AM" / "12 PM"       — hour only with AM/PM
+ *   "3:30 AM" / "3:30 PM"  — hour:minute with AM/PM
+ *   "15:00" / "03:00"      — 24-hour HH:mm
+ */
+function parseScheduleTime(str) {
+  if (!str || !str.trim()) return false;
+  var s = str.trim();
+  // Hour-only AM/PM: "3 AM", "12 PM"
+  if (/^\d{1,2}\s*(AM|PM)$/i.test(s)) return true;
+  // Hour:minute AM/PM: "3:30 AM", "3:30 PM"
+  if (/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(s)) return true;
+  // 24-hour: "15:00", "03:00"
+  if (/^\d{1,2}:\d{2}$/.test(s)) return true;
+  return false;
+}
+
+function toggleDay(sched, day, checked) {
+  if (checked) {
+    if (sched.days.indexOf(day) < 0) sched.days.push(day);
+  } else {
+    sched.days = sched.days.filter(function(d) { return d !== day; });
+  }
+}
+
+function refreshTimesList(wrap, sched) {
+  var list = wrap.querySelector('.times-list');
+  list.innerHTML = sched.times.map(function(t) {
+    return '<span class="time-chip">' + escHtml(t)
+         + '<span class="remove-time" data-time="' + escHtml(t) + '" title="Remove">x</span>'
+         + '</span>';
+  }).join('');
+}
+
+/* ---- Warnings ---- */
+function renderWarnings() {
+  document.getElementById('warnEnabled').checked          = !!state.warnings.enabled;
+  document.getElementById('warnActionBarThreshold').value = state.warnings.actionBarThreshold;
+  document.getElementById('warnActionBarFormat').value    = state.warnings.actionBarFormat;
+
+  var container = document.getElementById('warningsList');
+  container.innerHTML = '';
+  state.warnings.intervals.forEach(function(w) {
+    container.appendChild(buildWarningItem(w));
+  });
+}
+
+function buildWarningItem(w) {
+  var wrap = document.createElement('div');
+  wrap.className = 'list-item';
+  wrap.id = 'warn-' + w.id;
+
+  wrap.innerHTML =
+    '<div class="list-item-header">'
+    + '<span class="item-title">' + w.seconds + 's remaining</span>'
+    + '<span class="collapse-indicator">&#9660;</span>'
+    + '<button class="btn btn-danger btn-sm remove-warning" data-id="' + w.id + '">Remove</button>'
+    + '</div>'
+    + '<div class="list-item-body">'
+    +   '<div class="field-row"><label>Seconds Remaining</label>'
+    +     '<input type="number" data-field="seconds" value="' + w.seconds + '" min="0"></div>'
+    +   '<div class="field-row"><label>Message</label>'
+    +     '<input type="text" data-field="message" value="' + escHtml(w.message) + '"></div>'
+    +   '<div class="field-row"><label>Title</label>'
+    +     '<input type="text" data-field="title" value="' + escHtml(w.title) + '" placeholder="(optional)"></div>'
+    +   '<div class="field-row"><label>Subtitle</label>'
+    +     '<input type="text" data-field="subtitle" value="' + escHtml(w.subtitle) + '" placeholder="(optional)"></div>'
+    +   '<div class="field-row"><label>Sound</label>'
+    +     '<input type="text" data-field="sound" value="' + escHtml(w.sound) + '" placeholder="e.g. ENTITY_ENDER_DRAGON_GROWL"></div>'
+    + '</div>';
+
+  var header = wrap.querySelector('.list-item-header');
+  var body   = wrap.querySelector('.list-item-body');
+  header.addEventListener('click', function(e) {
+    if (e.target.closest('.btn')) return;
+    body.style.display = body.style.display === 'none' ? '' : 'none';
+    var ind = header.querySelector('.collapse-indicator');
+    ind.innerHTML = body.style.display === 'none' ? '&#9654;' : '&#9660;';
+  });
+
+  wrap.querySelector('[data-field="seconds"]').addEventListener('input', function() {
+    w.seconds = parseInt(this.value, 10) || 0;
+    header.querySelector('.item-title').textContent = w.seconds + 's remaining';
+  });
+
+  wrap.querySelector('.remove-warning').addEventListener('click', function() {
+    state.warnings.intervals = state.warnings.intervals.filter(function(x) { return x.id !== w.id; });
+    renderWarnings();
+  });
+
+  return wrap;
+}
+
+/* ---- Grace ---- */
+function renderGrace() {
+  document.getElementById('graceEnabled').checked        = !!state.grace.enabled;
+  document.getElementById('graceMaxDelay').value         = state.grace.maxDelayMinutes;
+  document.getElementById('graceCheckInterval').value    = state.grace.checkIntervalSeconds;
+  document.getElementById('graceMessage').value          = state.grace.message;
+  document.getElementById('graceCombat').checked         = !!state.grace.combat;
+
+  var container = document.getElementById('graceWorldsList');
+  container.innerHTML = '';
+  state.grace.worlds.forEach(function(w) {
+    var chip = document.createElement('span');
+    chip.className = 'time-chip';
+    chip.innerHTML = escHtml(w)
+      + '<span class="remove-time" data-world="' + escHtml(w) + '" title="Remove">x</span>';
+    container.appendChild(chip);
+  });
+
+  container.addEventListener('click', function(e) {
+    var rm = e.target.closest('.remove-time');
+    if (!rm) return;
+    var world = rm.dataset.world;
+    state.grace.worlds = state.grace.worlds.filter(function(x) { return x !== world; });
+    renderGrace();
+  });
+}
+
+/* ---- Performance ---- */
+function renderPerformance() {
+  document.getElementById('perfEnabled').checked          = !!state.performance.enabled;
+  document.getElementById('perfTpsThreshold').value       = state.performance.tpsThreshold;
+  document.getElementById('perfDurationMinutes').value    = state.performance.durationMinutes;
+  document.getElementById('perfAction').value             = state.performance.action;
+  document.getElementById('perfReason').value             = state.performance.reason;
+  document.getElementById('perfCooldown').value           = state.performance.cooldownMinutes;
+}
+
+/* ---- Pre-restart commands ---- */
+function renderCommands() {
+  document.getElementById('preEnabled').checked = !!state.prerestart.enabled;
+
+  var container = document.getElementById('cmdList');
+  container.innerHTML = '';
+  state.prerestart.commands.forEach(function(cmd) {
+    container.appendChild(buildCommandItem(cmd));
+  });
+}
+
+function buildCommandItem(cmd) {
+  var wrap = document.createElement('div');
+  wrap.className = 'list-item';
+  wrap.id = 'cmd-' + cmd.id;
+
+  wrap.innerHTML =
+    '<div class="list-item-header">'
+    + '<span class="item-title">' + escHtml(cmd.command || '(empty)') + '</span>'
+    + '<span class="collapse-indicator">&#9660;</span>'
+    + '<button class="btn btn-danger btn-sm remove-cmd" data-id="' + cmd.id + '">Remove</button>'
+    + '</div>'
+    + '<div class="list-item-body">'
+    +   '<div class="field-row"><label>Delay (seconds before restart)</label>'
+    +     '<input type="number" data-field="delay" value="' + cmd.delay + '" min="0"></div>'
+    +   '<div class="field-row"><label>Command</label>'
+    +     '<input type="text" data-field="command" value="' + escHtml(cmd.command) + '" placeholder="e.g. broadcast Server restarting!"></div>'
+    +   '<div class="field-row"><label>Executor</label>'
+    +     '<select data-field="executor">'
+    +       '<option value="console" ' + (cmd.executor === 'console' ? 'selected' : '') + '>console</option>'
+    +     '</select></div>'
+    + '</div>';
+
+  var header = wrap.querySelector('.list-item-header');
+  var body   = wrap.querySelector('.list-item-body');
+  header.addEventListener('click', function(e) {
+    if (e.target.closest('.btn')) return;
+    body.style.display = body.style.display === 'none' ? '' : 'none';
+    var ind = header.querySelector('.collapse-indicator');
+    ind.innerHTML = body.style.display === 'none' ? '&#9654;' : '&#9660;';
+  });
+
+  wrap.querySelector('[data-field="command"]').addEventListener('input', function() {
+    cmd.command = this.value;
+    header.querySelector('.item-title').textContent = this.value || '(empty)';
+  });
+
+  wrap.querySelector('.remove-cmd').addEventListener('click', function() {
+    state.prerestart.commands = state.prerestart.commands.filter(function(c) { return c.id !== cmd.id; });
+    renderCommands();
+  });
+
+  return wrap;
+}
+
+/* ---- Backup ---- */
+function renderBackup() {
+  document.getElementById('backupEnabled').checked         = !!state.backup.enabled;
+  document.getElementById('backupCompress').checked        = !!state.backup.compress;
+  document.getElementById('backupMaintenanceMode').checked = !!state.backup.maintenanceMode;
+  document.getElementById('backupMaxBackups').value        = state.backup.maxBackups;
+  document.getElementById('backupDestination').value       = state.backup.destination;
+
+  var container = document.getElementById('backupIncludeList');
+  container.innerHTML = '';
+  state.backup.include.forEach(function(entry) {
+    var chip = document.createElement('span');
+    chip.className = 'time-chip';
+    chip.style.marginBottom = '4px';
+    chip.innerHTML = escHtml(entry)
+      + '<span class="remove-time" data-entry="' + escHtml(entry) + '" title="Remove">x</span>';
+    container.appendChild(chip);
+  });
+
+  // Delegated listener — re-attach each render to avoid stale closures
+  container.onclick = function(e) {
+    var rm = e.target.closest('.remove-time');
+    if (!rm) return;
+    var entry = rm.dataset.entry;
+    state.backup.include = state.backup.include.filter(function(x) { return x !== entry; });
+    renderBackup();
+  };
+}
+
+// ============================================================
+//  YAML serializer (simple — handles strings, numbers, booleans,
+//  lists, and nested objects up to 3 levels deep)
+// ============================================================
+function toYaml(obj, indent) {
+  indent = indent || '';
+  var lines = [];
+  Object.keys(obj).forEach(function(key) {
+    var val = obj[key];
+    var k = yamlKey(key);
+    if (val === null || val === undefined) {
+      lines.push(indent + k + ': null');
+    } else if (typeof val === 'boolean') {
+      lines.push(indent + k + ': ' + val);
+    } else if (typeof val === 'number') {
+      lines.push(indent + k + ': ' + val);
+    } else if (typeof val === 'string') {
+      lines.push(indent + k + ': ' + yamlString(val));
+    } else if (Array.isArray(val)) {
+      if (val.length === 0) {
+        lines.push(indent + k + ': []');
+      } else if (typeof val[0] === 'object') {
+        lines.push(indent + k + ':');
+        val.forEach(function(item) {
+          var itemLines = toYaml(item, indent + '    ').split('\n');
+          itemLines[0] = indent + '  - ' + itemLines[0].trimStart();
+          for (var i = 1; i < itemLines.length; i++) {
+            itemLines[i] = indent + '    ' + itemLines[i].trimStart();
+          }
+          lines.push(itemLines.join('\n'));
+        });
+      } else {
+        // simple scalar list — use block style
+        lines.push(indent + k + ':');
+        val.forEach(function(item) {
+          lines.push(indent + '  - ' + yamlScalar(item));
+        });
+      }
+    } else if (typeof val === 'object') {
+      lines.push(indent + k + ':');
+      lines.push(toYaml(val, indent + '  '));
+    }
+  });
+  return lines.join('\n');
+}
+
+function yamlKey(k) { return /[^a-zA-Z0-9_\-]/.test(k) ? '"' + k.replace(/"/g,'\\\"') + '"' : k; }
+function yamlScalar(v) {
+  if (typeof v === 'boolean') return String(v);
+  if (typeof v === 'number')  return String(v);
+  return yamlString(String(v));
+}
+function yamlString(s) {
+  // Use double-quotes if the string contains special YAML chars
+  if (/[:#\[\]{}&*!|>'"%@`,]|^\s|\s$|^(true|false|null|yes|no)$/i.test(s) || s === '') {
+    return '"' + s.replace(/\\/g,'\\\\').replace(/"/g,'\\"') + '"';
+  }
+  return s;
+}
+
+// ============================================================
+//  YAML parser (simple — handles the plugin's own config shape)
+// ============================================================
+function fromYaml(text) {
+  var lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  var root = {};
+  var stack = [{obj: root, indent: -1}];
+
+  function currentObj() { return stack[stack.length - 1].obj; }
+
+  var i = 0;
+  while (i < lines.length) {
+    var line = lines[i];
+    // Skip blank lines and comments
+    if (/^\s*(#|$)/.test(line)) { i++; continue; }
+
+    var rawIndent = line.search(/\S/);
+    if (rawIndent < 0) { i++; continue; }
+
+    // Pop stack until we find a context with smaller indent
+    while (stack.length > 1 && stack[stack.length - 1].indent >= rawIndent) {
+      stack.pop();
+    }
+
+    var trimmed = line.substring(rawIndent);
+
+    // List item
+    if (/^- /.test(trimmed)) {
+      var listVal = parseYamlValue(trimmed.substring(2).trim());
+      var arr = currentObj();
+      if (Array.isArray(arr)) {
+        if (typeof listVal === 'object' && listVal !== null) {
+          arr.push(listVal);
+          stack.push({obj: listVal, indent: rawIndent + 2});
+        } else {
+          arr.push(listVal);
+        }
+      }
+      i++; continue;
+    }
+
+    // Key: value
+    var colonIdx = trimmed.indexOf(':');
+    if (colonIdx < 0) { i++; continue; }
+
+    var rawKey = trimmed.substring(0, colonIdx).trim().replace(/^"|"$/g,'');
+    var rawVal = trimmed.substring(colonIdx + 1).trim();
+
+    // Multiline list start (key: followed by nothing or just comment)
+    if (rawVal === '' || rawVal.startsWith('#')) {
+      // peek ahead to see if next non-empty, non-comment line is a list item
+      var j = i + 1;
+      while (j < lines.length && /^\s*(#|$)/.test(lines[j])) j++;
+      if (j < lines.length && /^\s*- /.test(lines[j])) {
+        var newArr = [];
+        currentObj()[rawKey] = newArr;
+        stack.push({obj: newArr, indent: rawIndent});
+        i++; continue;
+      }
+      // nested object
+      var newObj = {};
+      currentObj()[rawKey] = newObj;
+      stack.push({obj: newObj, indent: rawIndent});
+      i++; continue;
+    }
+
+    currentObj()[rawKey] = parseYamlValue(rawVal);
+    i++;
+  }
+  return root;
+}
+
+function parseYamlValue(s) {
+  if (s === 'null' || s === '~') return null;
+  if (s === 'true'  || s === 'yes') return true;
+  if (s === 'false' || s === 'no')  return false;
+  if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+  if (/^".*"$/.test(s)) return s.slice(1,-1).replace(/\\"/g,'"').replace(/\\\\/g,'\\');
+  if (/^'.*'$/.test(s)) return s.slice(1,-1).replace(/''/g,"'");
+  // Strip inline comment
+  var commentIdx = s.indexOf(' #');
+  if (commentIdx >= 0) s = s.substring(0, commentIdx).trim();
+  return s;
+}
+
+// ============================================================
+//  Import
+// ============================================================
+document.getElementById('importFile').addEventListener('change', function(e) {
+  var files = Array.from(e.target.files);
+  files.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        var parsed = fromYaml(ev.target.result);
+        var fname  = file.name.toLowerCase();
+        if (fname.indexOf('schedule') >= 0) {
+          importSchedules(parsed);
+        } else {
+          importConfig(parsed);
+        }
+        renderAll();
+        toast('Imported ' + file.name, 'success');
+      } catch(ex) {
+        toast('Parse error in ' + file.name + ': ' + ex.message, 'error');
+        console.error(ex);
+      }
+    };
+    reader.readAsText(file);
+  });
+  // Reset so re-importing the same file works
+  e.target.value = '';
+});
+
+function importSchedules(parsed) {
+  var raw = parsed.schedules;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return;
+  state.schedules = [];
+  Object.keys(raw).forEach(function(name) {
+    var s = raw[name];
+    state.schedules.push({
+      id:       uid(),
+      name:     name,
+      enabled:  s.enabled !== false,
+      timezone: s.timezone || 'UTC',
+      days:     Array.isArray(s.days) ? s.days.map(function(d){ return String(d).toUpperCase(); }) : [],
+      times:    Array.isArray(s.times) ? s.times.map(String) : [],
+      priority: typeof s.priority === 'number' ? s.priority : 1
+    });
+  });
+}
+
+function importConfig(parsed) {
+  // Warnings
+  if (parsed.warnings) {
+    var w = parsed.warnings;
+    state.warnings.enabled            = w.enabled !== false;
+    state.warnings.actionBarThreshold = w['action-bar-threshold'] || 60;
+    state.warnings.actionBarFormat    = w['action-bar-format'] || state.warnings.actionBarFormat;
+    if (Array.isArray(w.intervals)) {
+      state.warnings.intervals = w.intervals.map(function(iv) {
+        return {
+          id:       uid(),
+          seconds:  iv.seconds || 0,
+          message:  iv.message  || '',
+          title:    iv.title    || '',
+          subtitle: iv.subtitle || '',
+          sound:    iv.sound    || ''
+        };
+      });
+    }
+  }
+
+  // Grace period
+  if (parsed.grace_period) {
+    var g = parsed.grace_period;
+    state.grace.enabled              = !!g.enabled;
+    state.grace.maxDelayMinutes      = g.max_delay_minutes || 15;
+    state.grace.checkIntervalSeconds = g.check_interval_seconds || 5;
+    state.grace.message              = g.message || '';
+    var cond = g.conditions || {};
+    state.grace.combat  = cond.combat !== false;
+    state.grace.worlds  = Array.isArray(cond.worlds) ? cond.worlds.map(String) : [];
+  }
+
+  // Performance triggers
+  if (parsed.performance_triggers) {
+    var p = parsed.performance_triggers;
+    state.performance.enabled         = !!p.enabled;
+    state.performance.tpsThreshold    = p.tps_threshold    || 15.0;
+    state.performance.durationMinutes = p.duration_minutes || 5;
+    state.performance.action          = p.action           || 'schedule';
+    state.performance.reason          = p.reason           || 'Performance degradation detected';
+    state.performance.cooldownMinutes = p.cooldown_minutes || 60;
+  }
+
+  // Pre-restart commands
+  if (parsed.pre_restart) {
+    var pr = parsed.pre_restart;
+    state.prerestart.enabled = pr.enabled !== false;
+    if (Array.isArray(pr.commands)) {
+      state.prerestart.commands = pr.commands.map(function(c) {
+        return {
+          id:       uid(),
+          delay:    c.delay    || 0,
+          command:  c.command  || '',
+          executor: c.executor || 'console'
+        };
+      });
+    }
+  }
+
+  // Backup
+  if (parsed.backup) {
+    var b = parsed.backup;
+    state.backup.enabled         = !!b.enabled;
+    state.backup.compress        = b.compress !== false;
+    state.backup.maintenanceMode = b.maintenance_mode !== false;
+    state.backup.maxBackups      = typeof b.max_backups === 'number' ? b.max_backups : 5;
+    state.backup.destination     = b.destination || 'plugins/SwagRestartScheduler/backups';
+    state.backup.include         = Array.isArray(b.include) ? b.include.map(String) : ['world', 'world_nether', 'world_the_end'];
+  }
+}
+
+// ============================================================
+//  Export — generate YAML and download
+// ============================================================
+function buildConfigYaml() {
+  collectFormValues();
+  var cfg = {
+    general: {
+      'use-spigot-restart': true,
+      'log-prefix': '[SwagRestartScheduler]',
+      'check-interval-seconds': 10
+    },
+    warnings: {
+      enabled: state.warnings.enabled,
+      intervals: state.warnings.intervals.map(function(w) {
+        var item = { seconds: w.seconds, message: w.message };
+        if (w.title)    item.title    = w.title;
+        if (w.subtitle) item.subtitle = w.subtitle;
+        if (w.sound)    item.sound    = w.sound;
+        return item;
+      }),
+      'action-bar-threshold': state.warnings.actionBarThreshold,
+      'action-bar-format':    state.warnings.actionBarFormat
+    },
+    grace_period: {
+      enabled: state.grace.enabled,
+      max_delay_minutes: state.grace.maxDelayMinutes,
+      conditions: {
+        combat: state.grace.combat,
+        worlds: state.grace.worlds
+      },
+      check_interval_seconds: state.grace.checkIntervalSeconds,
+      message: state.grace.message
+    },
+    pre_restart: {
+      enabled: state.prerestart.enabled,
+      commands: state.prerestart.commands.map(function(c) {
+        return { delay: c.delay, command: c.command, executor: c.executor };
+      })
+    },
+    performance_triggers: {
+      enabled:          state.performance.enabled,
+      tps_threshold:    state.performance.tpsThreshold,
+      duration_minutes: state.performance.durationMinutes,
+      action:           state.performance.action,
+      reason:           state.performance.reason,
+      cooldown_minutes: state.performance.cooldownMinutes
+    },
+    backup: {
+      enabled:          state.backup.enabled,
+      include:          state.backup.include,
+      destination:      state.backup.destination,
+      max_backups:      state.backup.maxBackups,
+      compress:         state.backup.compress,
+      maintenance_mode: state.backup.maintenanceMode
+    },
+    discord: {
+      enabled: true,
+      webhook_id: 'your_webhook_id',
+      notifications: {
+        scheduled_restart: { enabled: true, message: 'Server restarting in {time}. Players online: {player_count}' },
+        manual_restart:    { enabled: true, message: 'Manual restart — {reason}. Initiated by: {initiator}' },
+        server_online:     { enabled: true, message: 'Server has restarted successfully!' }
+      }
+    }
+  };
+  return '# SwagRestartScheduler - Main Configuration\n# Generated by Config Editor\n\n' + toYaml(cfg);
+}
+
+function buildSchedulesYaml() {
+  collectFormValues();
+  var schedObj = {};
+  state.schedules.forEach(function(s) {
+    schedObj[s.name] = {
+      enabled:  s.enabled,
+      timezone: s.timezone,
+      days:     s.days,
+      times:    s.times,
+      priority: s.priority
+    };
+  });
+  var out = {schedules: schedObj};
+  return '# SwagRestartScheduler - Schedules Configuration\n# Generated by Config Editor\n\n' + toYaml(out);
+}
+
+function downloadFile(filename, content) {
+  var blob = new Blob([content], {type: 'text/plain;charset=utf-8'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
+document.getElementById('btnExportConfig').addEventListener('click', function() {
+  try {
+    downloadFile('config.yml', buildConfigYaml());
+    toast('config.yml downloaded.', 'success');
+  } catch(e) {
+    toast('Export failed: ' + e.message, 'error');
+  }
+});
+
+document.getElementById('btnExportSchedules').addEventListener('click', function() {
+  try {
+    downloadFile('schedules.yml', buildSchedulesYaml());
+    toast('schedules.yml downloaded.', 'success');
+  } catch(e) {
+    toast('Export failed: ' + e.message, 'error');
+  }
+});
+
+document.getElementById('btnSaveLocal').addEventListener('click', saveToLocal);
+
+// ============================================================
+//  Add buttons
+// ============================================================
+document.getElementById('btnAddSchedule').addEventListener('click', function() {
+  state.schedules.push(defaultSchedule());
+  renderSchedules();
+  // Scroll to bottom
+  var list = document.getElementById('schedulesList');
+  list.lastElementChild && list.lastElementChild.scrollIntoView({behavior:'smooth', block:'nearest'});
+});
+
+document.getElementById('btnAddWarning').addEventListener('click', function() {
+  state.warnings.intervals.push(defaultWarning());
+  renderWarnings();
+  var list = document.getElementById('warningsList');
+  list.lastElementChild && list.lastElementChild.scrollIntoView({behavior:'smooth', block:'nearest'});
+});
+
+document.getElementById('btnAddCmd').addEventListener('click', function() {
+  state.prerestart.commands.push(defaultCommand());
+  renderCommands();
+});
+
+document.getElementById('btnAddGraceWorld').addEventListener('click', function() {
+  var input = document.getElementById('graceNewWorld');
+  var val = input.value.trim();
+  if (!val) return;
+  if (state.grace.worlds.indexOf(val) < 0) {
+    state.grace.worlds.push(val);
+    renderGrace();
+  }
+  input.value = '';
+});
+
+document.getElementById('btnAddBackupInclude').addEventListener('click', function() {
+  var input = document.getElementById('backupNewInclude');
+  var val = input.value.trim();
+  if (!val) return;
+  if (state.backup.include.indexOf(val) < 0) {
+    state.backup.include.push(val);
+    renderBackup();
+  }
+  input.value = '';
+});
+
+// ============================================================
+//  Tab switching
+// ============================================================
+document.querySelectorAll('nav.tabs button[data-tab]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('nav.tabs button').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ============================================================
+//  Toast utility
+// ============================================================
+var toastTimer = null;
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent  = msg;
+  el.className    = 'show ' + (type || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { el.className = ''; }, 3000);
+}
+
+// ============================================================
+//  HTML escape
+// ============================================================
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ============================================================
+//  Render all tabs
+// ============================================================
+function renderAll() {
+  renderSchedules();
+  renderWarnings();
+  renderGrace();
+  renderPerformance();
+  renderCommands();
+  renderBackup();
+}
+
+// ============================================================
+//  Bootstrap
+// ============================================================
+(function init() {
+  // Try loading from localStorage; if empty, populate with a sensible default schedule
+  if (!loadFromLocal()) {
+    state.schedules = [
+      {
+        id: uid(),
+        name: 'weekday',
+        enabled: true,
+        timezone: 'America/New_York',
+        days: ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY'],
+        times: ['3 AM', '3 PM'],
+        priority: 1
+      },
+      {
+        id: uid(),
+        name: 'weekend',
+        enabled: true,
+        timezone: 'America/New_York',
+        days: ['SATURDAY','SUNDAY'],
+        times: ['5 AM'],
+        priority: 1
+      }
+    ];
+    state.warnings.intervals = [
+      { id: uid(), seconds: 1800, message: '<gold>Server restart in 30 minutes!', title: '', subtitle: '', sound: '' },
+      { id: uid(), seconds: 900,  message: '<gold>Server restart in 15 minutes!', title: '', subtitle: '', sound: '' },
+      { id: uid(), seconds: 300,  message: '<gold>Server restart in 5 minutes!',  title: '', subtitle: '', sound: '' },
+      { id: uid(), seconds: 60,   message: '<red>Server restart in 1 minute!', title: '<red><bold>RESTARTING SOON', subtitle: '<yellow>1 minute remaining', sound: '' },
+      { id: uid(), seconds: 30,   message: '<red>Server restart in 30 seconds!', title: '<red><bold>RESTARTING SOON', subtitle: '<yellow>30 seconds remaining', sound: '' },
+      { id: uid(), seconds: 10,   message: '<dark_red>Server restarting in <bold>10 seconds</bold>!', title: '<dark_red><bold>RESTARTING', subtitle: '<red>10 seconds!', sound: 'ENTITY_ENDER_DRAGON_GROWL' }
+    ];
+    state.prerestart.commands = [
+      { id: uid(), delay: 300, command: 'broadcast &cServer restarting in 5 minutes!', executor: 'console' },
+      { id: uid(), delay: 60,  command: 'broadcast &cServer restarting in 1 minute!',  executor: 'console' },
+      { id: uid(), delay: 5,   command: 'save-all', executor: 'console' }
+    ];
+  }
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
