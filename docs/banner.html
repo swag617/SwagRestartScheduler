@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwagRestartScheduler – Overview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:            #1a1a1a;
+    --bg-card:       #1e1e1e;
+    --bg-sidebar:    #212121;
+    --bg-active:     #1a1230;
+    --border:        #2a2a2a;
+    --border-dim:    #333;
+    --border-accent: #764ba2;
+    --purple:        #764ba2;
+    --blue:          #667eea;
+    --purple-muted:  #9b8ec4;
+    --purple-light:  #c0b3d8;
+    --text:          #e0e0e0;
+    --text-muted:    #999;
+    --text-dim:      #666;
+    --gold:          #f0c060;
+    --green:         #5fe05f;
+    --grad:          linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --font:          'Inter', sans-serif;
+    --mono:          'JetBrains Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 3px; }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .section-label span {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--blue);
+    white-space: nowrap;
+    opacity: 0.8;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-dim);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    height: 280px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(118,75,162,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #667eea, #764ba2);
+    background-size: 300% 300%;
+    animation: gradientShift 8s ease infinite;
+  }
+  @keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 75% 75% at 50% 50%, transparent 40%, rgba(10,8,30,0.5) 100%);
+  }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .hero-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+  }
+  .hero-title {
+    font-size: clamp(40px, 6.5vw, 72px);
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1;
+    color: #fff;
+    text-shadow: 0 2px 30px rgba(102,126,234,0.45);
+  }
+  .hero-sub {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    font-weight: 400;
+    max-width: 460px;
+    line-height: 1.55;
+  }
+  .hero-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .hero-pill {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 13px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.8);
+  }
+
+  /* ── CARDS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr;     gap: 10px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .card {
+    background: var(--bg-active);
+    border: 1px solid var(--border-accent);
+    border-radius: 10px;
+    padding: 24px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--blue); }
+  a.card-link { text-decoration: none; color: inherit; display: block; height: 100%; }
+  a.card-link:hover .card { border-color: var(--blue); }
+  a.card-link .card { height: 100%; transition: border-color 0.2s, transform 0.15s; box-sizing: border-box; }
+  a.card-link:hover .card { transform: translateY(-2px); }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--grad);
+    opacity: 0.7;
+  }
+  .card-icon { font-size: 28px; margin-bottom: 12px; display: block; line-height: 1; }
+  .card-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 7px; }
+  .card-desc { font-size: 12.5px; line-height: 1.65; color: var(--purple-muted); }
+  .card-desc strong { color: var(--text); font-weight: 600; }
+
+  /* ── WIDE CARD ── */
+  .wide-card {
+    background: var(--bg-active);
+    border: 1px solid var(--border-accent);
+    border-radius: 10px;
+    padding: 28px 32px;
+    display: flex;
+    align-items: center;
+    gap: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .wide-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--grad);
+    opacity: 0.7;
+  }
+  .wide-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 40% 100% at 0% 50%, rgba(102,126,234,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .wide-text { flex: 1; }
+  .wide-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--purple-muted);
+    opacity: 0.8;
+    margin-bottom: 8px;
+  }
+  .wide-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+  .wide-desc { font-size: 13px; line-height: 1.7; color: var(--purple-muted); max-width: 480px; }
+  .wide-desc strong { color: var(--text); font-weight: 600; }
+
+  .tax-stack { display: flex; flex-direction: column; gap: 6px; min-width: 200px; }
+  .tax-pill {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(118,75,162,0.3);
+    background: rgba(118,75,162,0.06);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--purple-light);
+  }
+  .tdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--grad); }
+
+  /* ── FOOTER BAR ── */
+  .footer-bar {
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 6px;
+  }
+  .footer-left { display: flex; flex-direction: column; gap: 9px; }
+  .compat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--blue);
+    opacity: 0.7;
+  }
+  .ver-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+  .ver-chip {
+    padding: 3px 12px;
+    border-radius: 20px;
+    background: rgba(102,126,234,0.08);
+    border: 1px solid rgba(118,75,162,0.25);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--purple-light);
+    font-family: var(--mono);
+  }
+  .footer-right { display: flex; gap: 28px; align-items: center; }
+  .stat-block { text-align: center; }
+  .stat-num {
+    font-size: 24px;
+    font-weight: 800;
+    background: var(--grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+  .stat-lbl {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    margin-top: 3px;
+  }
+  .dl-btn {
+    padding: 8px 20px;
+    background: linear-gradient(135deg, rgba(102,126,234,0.12), rgba(118,75,162,0.12));
+    border: 1px solid rgba(118,75,162,0.4);
+    border-radius: 8px;
+    color: var(--purple-light);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .dl-btn:hover {
+    background: linear-gradient(135deg, rgba(102,126,234,0.2), rgba(118,75,162,0.2));
+    border-color: var(--purple);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: #252525;
+    color: var(--blue);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .status-note {
+    background: var(--bg-active);
+    border: 1px solid rgba(118,75,162,0.3);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--purple-muted);
+  }
+  .status-note strong { color: var(--text); }
+
+  .hint {
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #2e2e2e;
+    text-transform: uppercase;
+    padding-top: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-label">Minecraft Plugin &nbsp;·&nbsp; Paper 1.20.4+</div>
+      <div class="hero-title">SwagRestartScheduler</div>
+      <div class="hero-sub">Automated restart scheduling with warnings, grace periods, backups, performance triggers, and Discord notifications.</div>
+      <div class="hero-pills">
+        <span class="hero-pill">Paper 1.20.4+</span>
+        <span class="hero-pill">Java 21</span>
+        <span class="hero-pill">In-Game GUI</span>
+        <span class="hero-pill">Web Config Editor</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-note">
+    <strong>Under active development.</strong> Restart scheduling, warnings, grace period, pre-restart commands, backups, performance triggers, Discord notifications, and the in-game GUI all work today. The schedule-creation wizard in the GUI is a stub ("coming soon" — edit <code class="chip">schedules.yml</code> directly instead), and the web config editor currently exports YAML files for manual install rather than saving live to the server. See the linked pages below for specifics.
+  </div>
+
+  <!-- CORE FEATURES -->
+  <div class="section-label"><span>Core Features</span></div>
+  <div class="grid-2">
+    <a class="card-link" href="./index.html#/core-features/restart-scheduling">
+      <div class="card">
+        <span class="card-icon">🗓️</span>
+        <div class="card-title">Restart Scheduling</div>
+        <div class="card-desc">Any number of <strong>named schedules</strong> in <code>schedules.yml</code> — days, times, timezone, and priority. The earliest upcoming restart across all schedules always wins.</div>
+      </div>
+    </a>
+    <a class="card-link" href="./index.html#/core-features/warnings">
+      <div class="card">
+        <span class="card-icon">⚠️</span>
+        <div class="card-title">Warnings & Countdown</div>
+        <div class="card-desc">Configurable countdown thresholds with <strong>chat messages, titles, sounds</strong>, and an action-bar countdown as the restart approaches.</div>
+      </div>
+    </a>
+    <a class="card-link" href="./index.html#/core-features/grace-period">
+      <div class="card">
+        <span class="card-icon">🛡️</span>
+        <div class="card-title">Grace Period</div>
+        <div class="card-desc">Delay a restart while players are <strong>in combat</strong> (via CombatLogX) or in a protected world, up to a configurable maximum delay.</div>
+      </div>
+    </a>
+    <a class="card-link" href="./index.html#/core-features/backups">
+      <div class="card">
+        <span class="card-icon">📦</span>
+        <div class="card-title">Pre-Restart Backups</div>
+        <div class="card-desc">Zips or copies configured world folders before restart, with <strong>maintenance-mode lockout</strong> and automatic pruning of old backups.</div>
+      </div>
+    </a>
+  </div>
+
+  <!-- PERFORMANCE -->
+  <div class="section-label"><span>Performance Monitoring</span></div>
+  <a href="./index.html#/core-features/performance-triggers" style="text-decoration:none;color:inherit;display:block;">
+    <div class="wide-card" style="cursor:pointer;transition:border-color 0.2s,transform 0.15s;" onmouseover="this.style.borderColor='#667eea';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='';this.style.transform=''">
+      <div class="wide-text">
+        <div class="wide-tag">Rolling TPS Window</div>
+        <div class="wide-title">TPS-Based Performance Triggers</div>
+        <div class="wide-desc">Samples <strong>1-minute TPS</strong> once per second into a rolling window. If every sample stays below the configured threshold for the full window, a restart is scheduled (or forced immediately) — with a cooldown to prevent restart loops.</div>
+      </div>
+      <div class="tax-stack">
+        <div class="tax-pill"><span class="tdot"></span> TPS Threshold</div>
+        <div class="tax-pill"><span class="tdot"></span> Duration Window</div>
+        <div class="tax-pill"><span class="tdot"></span> Schedule / Immediate</div>
+        <div class="tax-pill"><span class="tdot"></span> Cooldown Minutes</div>
+      </div>
+    </div>
+  </a>
+
+  <!-- INTEGRATION -->
+  <div class="section-label"><span>Integration & Tooling</span></div>
+  <div class="grid-3">
+    <a class="card-link" href="./index.html#/core-features/discord-notifications">
+      <div class="card">
+        <span class="card-icon">📣</span>
+        <div class="card-title">Discord Notifications</div>
+        <div class="card-desc">Scheduled, manual, and server-online events relayed through the <strong>DiscordUtils</strong> plugin's webhook API — a soft-dependency, not a built-in webhook client.</div>
+      </div>
+    </a>
+    <a class="card-link" href="./index.html#/core-features/web-editor">
+      <div class="card">
+        <span class="card-icon">🌐</span>
+        <div class="card-title">Web Config Editor</div>
+        <div class="card-desc">A form-based YAML builder served through <strong>SwagAPI's</strong> shared panel. Exports <code>config.yml</code> / <code>schedules.yml</code> for manual install — no live server save yet.</div>
+      </div>
+    </a>
+    <a class="card-link" href="./index.html#/core-features/in-game-gui">
+      <div class="card">
+        <span class="card-icon">🖥️</span>
+        <div class="card-title">In-Game GUI</div>
+        <div class="card-desc"><strong><code>/srestart gui</code></strong> — browse and edit existing schedules, toggle warnings and backup settings, and view the last 10 restart log entries.</div>
+      </div>
+    </a>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-bar">
+    <div class="footer-left">
+      <div class="compat-label">Compatibility</div>
+      <div class="ver-chips">
+        <span class="ver-chip">Paper 1.20.4+</span>
+        <span class="ver-chip">Java 21</span>
+        <span class="ver-chip">DiscordUtils Optional</span>
+        <span class="ver-chip">SwagAPI Optional</span>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div class="stat-block">
+        <div class="stat-num">9</div>
+        <div class="stat-lbl">Subcommands</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">8</div>
+        <div class="stat-lbl">Permissions</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">2.0.0</div>
+        <div class="stat-lbl">Version</div>
+      </div>
+      <a href="https://github.com/swag617/SwagRestartScheduler" target="_blank" style="text-decoration:none;"><button class="dl-btn">View on GitHub</button></a>
+    </div>
+  </div>
+
+  <div class="hint"><a href="./index.html#/getting-started/installation" style="color:#764ba2;text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;">→ getting started</a> &nbsp;·&nbsp; <a href="./index.html#/troubleshooting" style="color:#764ba2;text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;">troubleshooting</a></div>
+</div>
+</body>
+</html>
