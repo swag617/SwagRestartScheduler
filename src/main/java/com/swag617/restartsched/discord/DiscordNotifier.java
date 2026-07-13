@@ -1,50 +1,37 @@
 package com.swag617.restartsched.discord;
 
+import com.SwagDev.SwagAPI.api.IEventBusService;
+import com.SwagDev.SwagAPI.events.SwagCrossPluginMessageEvent;
 import com.swag617.restartsched.SwagRestartScheduler;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.RegisteredServiceProvider;
 
-import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * Sends Discord notifications via the optional DiscordUtils soft-dependency.
+ * Sends Discord notifications via SwagAPI's shared {@link IEventBusService}, publishing
+ * to the {@code discordutils:notify} channel — DiscordUtils (if installed and a
+ * matching named webhook is configured) picks it up and posts it, with zero compile-time
+ * or reflection-based coupling to DiscordUtils itself.
  *
- * <p>All calls are guarded by {@code Bukkit.getPluginManager().isPluginEnabled("DiscordUtils")}.
- * If DiscordUtils is absent, or if the reflection-based API lookup fails, all
- * methods become no-ops and a one-time warning is logged.</p>
- *
- * <h3>Reflection target</h3>
- * <p>We target the real {@code com.swag.discordutils.DiscordUtils} plugin (package
- * {@code com.swag.discordutils}), via:</p>
- * <pre>
- * DiscordUtils.getInstance().getDiscordBot().sendMessage(String)
- * </pre>
- * <p><b>Limitation:</b> the real DiscordUtils plugin has no webhook-ID concept and no
- * per-notification-type channel routing — {@code DiscordBot#sendMessage(String)} always
- * posts to whichever channel DiscordUtils' own {@code chat.channel-id} config key points
- * at. The old {@code discord.webhook_id} config key from this plugin's config.yml has been
- * removed since it never mapped to anything real; all three notification types
- * (scheduled_restart, manual_restart, server_online) are now routed to that single channel.
- * If per-notification-type channel routing is ever needed, DiscordUtils would need to expose
- * a small {@code ServicesManager}-registered interface (mirroring SwagAPI's {@code IWebService})
- * instead of this reflection-by-class-name approach.</p>
+ * <p>This replaces an earlier reflection-based integration
+ * ({@code DiscordUtils.getInstance().getDiscordBot().sendMessage(String)}) that had no
+ * per-notification-type channel routing — every message went wherever DiscordUtils'
+ * {@code chat.channel-id} pointed. The named-webhook payload below fixes that: restart
+ * notifications now get their own {@code webhooks.restart} entry in DiscordUtils'
+ * config.yml, independent of its chat channel.</p>
  *
  * <h3>Thread safety</h3>
- * <p>All network I/O is dispatched via {@code runTaskAsynchronously} to avoid
- * blocking the main thread.</p>
+ * <p>All network I/O (the actual Discord webhook POST) happens inside DiscordUtils,
+ * off SwagRestartScheduler's thread entirely — {@link IEventBusService#publish} itself
+ * is a synchronous, in-process call, so no async dispatch is needed here.</p>
  */
 public class DiscordNotifier {
 
     private final SwagRestartScheduler plugin;
     private final Logger logger;
-
-    /** Set to {@code false} permanently if reflection resolution fails. */
-    private volatile boolean available = true;
-    private volatile boolean resolved  = false;
-
-    // Reflection-cached fields (null until resolved)
-    private Object  discordBotInstance = null;
-    private Method  sendMessageMethod  = null;
 
     public DiscordNotifier(SwagRestartScheduler plugin) {
         this.plugin = plugin;
@@ -73,7 +60,7 @@ public class DiscordNotifier {
                 .replace("{time}", timeRemaining)
                 .replace("{player_count}", String.valueOf(playerCount));
 
-        sendAsync(message);
+        send(message);
     }
 
     /**
@@ -94,7 +81,7 @@ public class DiscordNotifier {
                 .replace("{reason}",    reason    != null ? reason    : "")
                 .replace("{initiator}", initiator != null ? initiator : "unknown");
 
-        sendAsync(message);
+        send(message);
     }
 
     /**
@@ -109,7 +96,7 @@ public class DiscordNotifier {
                 "discord.notifications.server_online.message",
                 "Server has restarted successfully!");
 
-        sendAsync(message);
+        send(message);
     }
 
     /**
@@ -117,8 +104,7 @@ public class DiscordNotifier {
      *
      * <p>Unlike the other notification types, this one is not individually gated by a
      * {@code discord.notifications.*.enabled} toggle — a crash loop is always alert-worthy —
-     * but it still respects the top-level {@code discord.enabled} switch and DiscordUtils
-     * availability via {@link #isDiscordEnabled()}.</p>
+     * but it still respects the top-level {@code discord.enabled} switch.</p>
      *
      * @param crashCount      number of unclean shutdowns detected within the window
      * @param windowMinutes   the detection window, in minutes
@@ -137,7 +123,7 @@ public class DiscordNotifier {
                 .replace("{window}", String.valueOf(windowMinutes))
                 .replace("{cooldown}", String.valueOf(cooldownMinutes));
 
-        sendAsync(message);
+        send(message);
     }
 
     // -------------------------------------------------------------------------
@@ -145,90 +131,28 @@ public class DiscordNotifier {
     // -------------------------------------------------------------------------
 
     private boolean isDiscordEnabled() {
-        if (!available) return false;
-        if (!plugin.getConfig().getBoolean("discord.enabled", true)) return false;
-        return Bukkit.getPluginManager().isPluginEnabled("DiscordUtils");
+        return plugin.getConfig().getBoolean("discord.enabled", true);
     }
 
     /**
-     * Dispatches the send operation on an async thread.
+     * Publishes the message on SwagAPI's event bus for DiscordUtils to pick up.
+     * No-ops (with a one-time-per-call warning) if SwagAPI's event bus isn't registered.
      */
-    private void sendAsync(String message) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> doSend(message));
-    }
-
-    /**
-     * Performs the actual send via reflection into DiscordUtils' DiscordBot.
-     * Must be called off the main thread.
-     */
-    private void doSend(String message) {
-        if (!available) return;
-
-        // Lazy-resolve reflection target
-        if (!resolved) {
-            resolve();
-            resolved = true;
-        }
-
-        if (!available || sendMessageMethod == null) return;
-
-        try {
-            sendMessageMethod.invoke(discordBotInstance, message);
-        } catch (Exception e) {
-            logger.warning("DiscordUtils DiscordBot#sendMessage failed: " + e.getMessage()
-                    + " — disabling Discord notifications.");
-            available = false;
-        }
-    }
-
-    /**
-     * Attempts to locate the real DiscordUtils API shape via reflection:
-     * {@code com.swag.discordutils.DiscordUtils#getInstance()} then
-     * {@code #getDiscordBot()} then {@code DiscordBot#sendMessage(String)}.
-     */
-    private void resolve() {
-        final String className = "com.swag.discordutils.DiscordUtils";
-
-        try {
-            Class<?> duClass = Class.forName(className);
-
-            Method getInstance = duClass.getMethod("getInstance");
-            Object duInstance = getInstance.invoke(null);
-            if (duInstance == null) {
-                logger.warning("DiscordUtils.getInstance() returned null — Discord notifications disabled.");
-                available = false;
-                return;
-            }
-
-            Method getDiscordBotMethod = duClass.getMethod("getDiscordBot");
-            Object discordBot = getDiscordBotMethod.invoke(duInstance);
-            if (discordBot == null) {
-                logger.warning("DiscordUtils.getInstance().getDiscordBot() returned null "
-                        + "(bot likely failed to connect — check DiscordUtils' bot-token config) "
-                        + "— Discord notifications disabled.");
-                available = false;
-                return;
-            }
-
-            Method sendMessage = discordBot.getClass().getMethod("sendMessage", String.class);
-
-            discordBotInstance = discordBot;
-            sendMessageMethod  = sendMessage;
-            logger.info("DiscordUtils integration resolved via " + className
-                    + "#getDiscordBot().sendMessage(String).");
+    private void send(String message) {
+        RegisteredServiceProvider<IEventBusService> rsp =
+                Bukkit.getServicesManager().getRegistration(IEventBusService.class);
+        if (rsp == null) {
+            logger.warning("discord.enabled is true but SwagAPI's event bus isn't available — notification dropped.");
             return;
-        } catch (ClassNotFoundException e) {
-            logger.warning("DiscordUtils plugin class (" + className + ") not found — "
-                    + "Discord notifications disabled.");
-        } catch (NoSuchMethodException e) {
-            logger.warning("Installed DiscordUtils does not expose the expected API shape "
-                    + "(getInstance/getDiscordBot/sendMessage): " + e.getMessage()
-                    + " — Discord notifications disabled. This may be an incompatible version of DiscordUtils.");
-        } catch (Exception e) {
-            logger.warning("Failed to resolve DiscordUtils integration: " + e.getMessage()
-                    + " — Discord notifications disabled.");
         }
 
-        available = false;
+        String webhookName = plugin.getConfig().getString("discord.webhook-name", "restart");
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("webhook", webhookName);
+        data.put("content", message);
+
+        rsp.getProvider().publish(new SwagCrossPluginMessageEvent(
+                "discordutils:notify", "SwagRestartScheduler", data, null));
     }
 }

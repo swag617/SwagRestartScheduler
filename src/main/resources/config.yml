@@ -176,13 +176,15 @@ web-editor:
   # URL: http://<swagapi-bind-ip>:<swagapi-port>/swagapi/swagrestartscheduler/
   enabled: true
 
-# Discord notifications — requires DiscordUtils soft-dep
-# All notifications are sent via DiscordUtils' DiscordBot#sendMessage(String), which always
-# targets DiscordUtils' own "chat.channel-id" config key. DiscordUtils has no per-webhook or
-# per-notification-type channel routing, so there is no way to send these three notification
-# types to different channels.
+# Discord notifications — published on SwagAPI's event bus (discordutils:notify channel).
+# Requires DiscordUtils to be installed with a matching "webhooks.<webhook-name>" entry
+# configured in ITS config.yml (see webhook-name below) — no compile-time or reflection
+# dependency on DiscordUtils from this plugin at all.
 discord:
   enabled: true
+  # Which named webhook (from DiscordUtils' config.yml "webhooks:" section) these
+  # notifications route to. Gets its own channel independent of DiscordUtils' chat relay.
+  webhook-name: "restart"
   notifications:
     scheduled_restart:
       enabled: true
