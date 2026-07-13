@@ -6,6 +6,8 @@ import org.bukkit.Bukkit;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -121,13 +123,20 @@ public class BackupManager {
     public void runBackup(Runnable onComplete) {
         // 1. Enable maintenance / whitelist so no new players join during backup
         if (maintenanceMode) {
-            if (Bukkit.getPluginManager().isPluginEnabled("Maintenance")) {
+            boolean viaMaintenancePlugin = Bukkit.getPluginManager().isPluginEnabled("Maintenance");
+            if (viaMaintenancePlugin) {
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "maintenance true");
                 plugin.getLogger().info("[Backup] Maintenance mode enabled via Maintenance plugin.");
             } else {
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "whitelist on");
                 plugin.getLogger().info("[Backup] Whitelist enabled (Maintenance plugin not found).");
             }
+            // Persist which mechanism we used so a future onEnable() (after the restart this
+            // backup precedes) can detect and revert it — runBackup() always runs right before
+            // the server goes down, so nothing in this JVM lifetime gets a chance to turn it
+            // back off otherwise. See SwagRestartScheduler#onEnable() ->
+            // BackupManager#checkAndClearMaintenanceMarker().
+            writeMaintenanceMarker(viaMaintenancePlugin ? "maintenance" : "whitelist");
         }
 
         // 2. Broadcast to players
@@ -159,6 +168,79 @@ public class BackupManager {
                     });
                 }
         ));
+    }
+
+    // -------------------------------------------------------------------------
+    // Maintenance-mode marker (Bug fix: maintenance/whitelist was never reverted)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns the {@link File} used to record that the last backup left the server in
+     * maintenance mode or whitelisted, pending a revert on the next startup.
+     */
+    private File maintenanceMarkerFile() {
+        return new File(plugin.getDataFolder(), "maintenance.lock");
+    }
+
+    /**
+     * Writes a marker file recording which mechanism ({@code "maintenance"} or
+     * {@code "whitelist"}) was just enabled, so {@link #checkAndClearMaintenanceMarker()}
+     * can revert it on the next plugin startup.
+     */
+    private void writeMaintenanceMarker(String mode) {
+        try {
+            Files.writeString(maintenanceMarkerFile().toPath(), mode, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            plugin.getLogger().warning("[Backup] Could not write maintenance marker — "
+                    + "the server may stay in maintenance/whitelist mode after the next restart "
+                    + "until an admin manually clears it: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Checks for a maintenance marker left behind by a previous backup and reverts the
+     * maintenance/whitelist state that was enabled before the backup ran, then deletes
+     * the marker.  Must be called from {@code onEnable()}, early, before players can join.
+     *
+     * <p>Safe to call even if no marker exists (does nothing).  Best-effort: if the
+     * {@code Maintenance} plugin is no longer installed by the time this runs, a warning
+     * is logged instead of silently leaving the server inaccessible with no explanation.</p>
+     */
+    public void checkAndClearMaintenanceMarker() {
+        File marker = maintenanceMarkerFile();
+        if (!marker.exists()) return;
+
+        String mode;
+        try {
+            mode = Files.readString(marker.toPath(), StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            plugin.getLogger().warning("[Backup] Could not read maintenance marker ("
+                    + e.getMessage() + ") — leaving current maintenance/whitelist state unchanged. "
+                    + "Check manually whether the server is still in maintenance mode or whitelisted.");
+            return;
+        }
+
+        if ("maintenance".equals(mode)) {
+            if (Bukkit.getPluginManager().isPluginEnabled("Maintenance")) {
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "maintenance false");
+                plugin.getLogger().info("[Backup] Reverted Maintenance-plugin maintenance mode "
+                        + "that was left on by the previous backup.");
+            } else {
+                plugin.getLogger().warning("[Backup] The previous backup left the server in "
+                        + "Maintenance-plugin maintenance mode, but the Maintenance plugin is not "
+                        + "currently enabled to revert it. Please check manually.");
+            }
+        } else if ("whitelist".equals(mode)) {
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "whitelist off");
+            plugin.getLogger().info("[Backup] Reverted whitelist that was left on by the previous backup.");
+        } else {
+            plugin.getLogger().warning("[Backup] Unrecognized maintenance marker contents ('" + mode
+                    + "') — ignoring. Please check manually whether maintenance mode or the "
+                    + "whitelist need to be disabled.");
+        }
+
+        //noinspection ResultOfMethodCallIgnored
+        marker.delete();
     }
 
     // -------------------------------------------------------------------------

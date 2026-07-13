@@ -3,6 +3,7 @@ package com.swag617.restartsched;
 import com.swag617.restartsched.automation.PreRestartCommandExecutor;
 import com.swag617.restartsched.backup.BackupManager;
 import com.swag617.restartsched.command.RestartCommand;
+import com.swag617.restartsched.crashloop.CrashLoopGuard;
 import com.swag617.restartsched.config.ConfigManager;
 import com.swag617.restartsched.discord.DiscordNotifier;
 import com.swag617.restartsched.grace.GracePeriodHandler;
@@ -76,6 +77,9 @@ public class SwagRestartScheduler extends JavaPlugin {
     // Web editor
     private WebEditorModule webEditorModule;
 
+    // Crash-loop safe mode
+    private CrashLoopGuard crashLoopGuard;
+
     // -------------------------------------------------------------------------
     // JavaPlugin lifecycle
     // -------------------------------------------------------------------------
@@ -84,6 +88,13 @@ public class SwagRestartScheduler extends JavaPlugin {
     public void onEnable() {
         long start = System.currentTimeMillis();
 
+        // 0. Crash-loop safe mode: detect an unclean previous shutdown BEFORE anything else
+        //    initialises, then immediately write our own "running" marker. If SwagAPI/Discord
+        //    aren't up yet the alert (if any) is deferred to step 6, once DiscordNotifier exists.
+        crashLoopGuard = new CrashLoopGuard(this);
+        crashLoopGuard.checkForUncleanShutdown();
+        crashLoopGuard.writeRunningMarker();
+
         // 1. Config — must be first
         configManager = new ConfigManager(this);
         configManager.initialLoad();
@@ -91,6 +102,10 @@ public class SwagRestartScheduler extends JavaPlugin {
         // 1a. Backup manager — reads config, no I/O beyond that
         backupManager = new BackupManager(this);
         backupManager.reload();
+        // If the last backup left the server in maintenance mode / whitelisted (it always
+        // does, when backup.maintenance_mode is enabled — see BackupManager#runBackup()),
+        // revert that now, before players can join.
+        backupManager.checkAndClearMaintenanceMarker();
 
         // 2. Logger
         restartLogger = new RestartLogger(this);
@@ -107,6 +122,8 @@ public class SwagRestartScheduler extends JavaPlugin {
 
         // 6. Phase 2 — Discord notifier
         discordNotifier = new DiscordNotifier(this);
+        // Now that Discord is available, send the crash-loop alert queued in step 0 (if any).
+        crashLoopGuard.sendPendingAlert();
 
         // 7. Phase 2 — GUI infrastructure
         guiManager        = new GUIManager(this);
@@ -143,6 +160,12 @@ public class SwagRestartScheduler extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Crash-loop safe mode: this is a clean shutdown — clear shutdown.lock first so the
+        // next startup doesn't mistake this JVM's exit for a crash.
+        if (crashLoopGuard != null) {
+            crashLoopGuard.clearRunningMarker();
+        }
+
         // Web editor — unregister from SwagAPI's shared IWebService
         if (webEditorModule != null) {
             webEditorModule.disable();
@@ -265,5 +288,11 @@ public class SwagRestartScheduler extends JavaPlugin {
 
     public WebEditorModule getWebEditorModule() {
         return webEditorModule;
+    }
+
+    // Crash-loop safe mode accessor
+
+    public CrashLoopGuard getCrashLoopGuard() {
+        return crashLoopGuard;
     }
 }

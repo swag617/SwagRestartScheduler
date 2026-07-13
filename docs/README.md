@@ -4,7 +4,7 @@
 
 SwagRestartScheduler runs scheduled and manual server restarts on Paper, with a full countdown/warning system, an optional pre-restart backup step, TPS-based performance triggers, and Discord notifications relayed through the DiscordUtils plugin. Restart schedules, warnings, grace-period rules, and backups can be edited live in-game through a GUI, or offline through YAML files.
 
-> **Project status:** SwagRestartScheduler is under active development. Restart scheduling, warnings, grace period, pre-restart commands, backups, performance triggers, Discord notifications, and the in-game GUI are all implemented and working. A couple of pieces are explicitly unfinished — see the callouts on [Restart Scheduling](core-features/restart-scheduling.md) (schedule-creation wizard) and [Web Config Editor](core-features/web-editor.md) (no server-side save yet).
+> **Project status:** SwagRestartScheduler is under active development. Restart scheduling, warnings, grace period, pre-restart commands, backups, performance triggers, Discord notifications, the in-game GUI (including schedule creation/deletion), and the web config editor's live save/load are all implemented and working. See [Restart Scheduling](core-features/restart-scheduling.md#whats-not-implemented-yet) for the one remaining known gap (cancelling an in-progress *scheduled* countdown from a command).
 
 ---
 

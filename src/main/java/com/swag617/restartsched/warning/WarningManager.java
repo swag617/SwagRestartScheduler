@@ -1,6 +1,9 @@
 package com.swag617.restartsched.warning;
 
 import com.swag617.restartsched.SwagRestartScheduler;
+import com.swag617.restartsched.discord.DiscordNotifier;
+import com.swag617.restartsched.schedule.ScheduleManager;
+import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
@@ -13,17 +16,19 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 /**
- * Manages warning broadcasts, action bar countdowns, titles, subtitles, and sounds.
+ * Manages warning broadcasts, action bar countdowns, titles, subtitles, sounds, and the
+ * final-countdown boss bar.
  *
  * <p>The {@link com.swag617.restartsched.task.RestartTask} calls
- * {@link #tick(long)} every second with the remaining millis; this class decides
+ * {@link #tick(long, String)} every second with the remaining millis; this class decides
  * which warnings to fire and sends them to all online players.</p>
  *
  * <p>Warnings that have already been fired are tracked in {@code firedWarnings} so
- * they do not repeat. Call {@link #reset()} when starting a new countdown.</p>
+ * they do not repeat. Call {@link #reset(long)} when starting a new countdown.</p>
  */
 public class WarningManager {
 
@@ -38,8 +43,31 @@ public class WarningManager {
     /** Tracks which warning thresholds (by secondsRemaining) have already been fired. */
     private final Set<Integer> firedWarnings = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Tracks whether the Discord "scheduled_restart" notification has already been sent
+     * for the current countdown. Reset in {@link #reset(long)} so exactly one Discord
+     * ping is sent per countdown, on the first warning threshold crossed.
+     */
+    private final AtomicBoolean discordNotifiedThisCountdown = new AtomicBoolean(false);
+
     private int actionBarThreshold = 60;
     private String actionBarFormat  = "<red><bold>Restarting in {seconds}s";
+
+    /**
+     * Hard ceiling for {@link #bossBarThresholdSeconds}, enforced regardless of config.
+     * A 30-60s boss bar was explicitly judged "too annoying" during review — this is
+     * intentionally a final-moments-only countdown, never a long naggy one.
+     */
+    private static final int BOSSBAR_HARD_CAP_SECONDS = 10;
+
+    private boolean bossBarEnabled = true;
+    private int bossBarThresholdSeconds = BOSSBAR_HARD_CAP_SECONDS;
+    private String bossBarTitleFormat = "<red><bold>{reason} — restarting in {seconds}s";
+    private BossBar.Color bossBarColor = BossBar.Color.RED;
+    private BossBar.Overlay bossBarOverlay = BossBar.Overlay.PROGRESS;
+
+    /** The currently displayed final-countdown boss bar, or {@code null} if none is showing. */
+    private BossBar activeBossBar = null;
 
     public WarningManager(SwagRestartScheduler plugin) {
         this.plugin = plugin;
@@ -97,6 +125,15 @@ public class WarningManager {
 
         actionBarThreshold = warningsSection.getInt("action-bar-threshold", 60);
         actionBarFormat    = warningsSection.getString("action-bar-format", "<red><bold>Restarting in {seconds}s");
+
+        // BossBar countdown — final moments only (see BOSSBAR_HARD_CAP_SECONDS)
+        bossBarEnabled = plugin.getConfig().getBoolean("boss_bar.enabled", true);
+        int configuredThreshold = plugin.getConfig().getInt("boss_bar.seconds-threshold", BOSSBAR_HARD_CAP_SECONDS);
+        bossBarThresholdSeconds = Math.max(0, Math.min(configuredThreshold, BOSSBAR_HARD_CAP_SECONDS));
+        bossBarTitleFormat = plugin.getConfig().getString(
+                "boss_bar.title-format", "<red><bold>{reason} — restarting in {seconds}s");
+        bossBarColor   = parseBarColor(plugin.getConfig().getString("boss_bar.color", "RED"));
+        bossBarOverlay = parseBarOverlay(plugin.getConfig().getString("boss_bar.overlay", "PROGRESS"));
     }
 
     // -------------------------------------------------------------------------
@@ -107,8 +144,10 @@ public class WarningManager {
      * Called once per second by {@link com.swag617.restartsched.task.RestartTask}.
      *
      * @param millisRemaining wall-clock milliseconds until restart
+     * @param reason          the restart's human-readable reason string, used as part of the
+     *                        final-countdown boss bar title (see {@link #updateBossBar})
      */
-    public void tick(long millisRemaining) {
+    public void tick(long millisRemaining, String reason) {
         long secondsRemaining = millisRemaining / 1000L;
 
         // Fire any warnings whose threshold we have just crossed
@@ -128,6 +167,12 @@ public class WarningManager {
                 player.sendActionBar(actionBar);
             }
         }
+
+        // BossBar countdown — final BOSSBAR_HARD_CAP_SECONDS seconds only. Deliberately not
+        // shown any earlier: a 30-60s bar was judged too annoying during review.
+        if (bossBarEnabled && secondsRemaining > 0 && secondsRemaining <= bossBarThresholdSeconds) {
+            updateBossBar(secondsRemaining, reason);
+        }
     }
 
     /**
@@ -140,6 +185,11 @@ public class WarningManager {
      */
     public void reset(long totalMillis) {
         firedWarnings.clear();
+        discordNotifiedThisCountdown.set(false);
+        // A fresh countdown is starting — tear down any boss bar left over from a previous
+        // one (should normally already be gone via RestartTask's cancel/hit-zero paths, but
+        // guard against a fresh countdown starting while one is still showing).
+        hideBossBar();
         long totalSeconds = totalMillis / 1000L;
         for (WarningDefinition def : warnings) {
             if (def.getSecondsRemaining() > totalSeconds) {
@@ -162,11 +212,92 @@ public class WarningManager {
     }
 
     // -------------------------------------------------------------------------
+    // BossBar countdown (final moments only)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Creates (or updates) the final-countdown boss bar shown to all online players.
+     * Title is {@code boss_bar.title-format} with {@code {reason}} and {@code {seconds}}
+     * placeholders; progress is {@code secondsRemaining / bossBarThresholdSeconds}.
+     */
+    private void updateBossBar(long secondsRemaining, String reason) {
+        String formatted = bossBarTitleFormat
+                .replace("{reason}", reason != null ? reason : "Server restart")
+                .replace("{seconds}", String.valueOf(secondsRemaining));
+        Component title = MM.deserialize(formatted);
+
+        float progress = bossBarThresholdSeconds > 0
+                ? (float) Math.max(0.0, Math.min(1.0, secondsRemaining / (double) bossBarThresholdSeconds))
+                : 1.0f;
+
+        if (activeBossBar == null) {
+            activeBossBar = BossBar.bossBar(title, progress, bossBarColor, bossBarOverlay);
+        } else {
+            activeBossBar.name(title);
+            activeBossBar.progress(progress);
+        }
+
+        // Idempotent: re-showing to an existing viewer is a harmless no-op, and this also
+        // picks up any player who joined mid-countdown.
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            player.showBossBar(activeBossBar);
+        }
+    }
+
+    /**
+     * Removes the final-countdown boss bar from all viewers, if one is currently showing.
+     * Safe to call even when no bar is active (no-op). Must be called whenever a countdown
+     * is cancelled or reaches zero — see {@link com.swag617.restartsched.task.RestartTask}.
+     */
+    public void hideBossBar() {
+        if (activeBossBar == null) return;
+        BossBar bar = activeBossBar;
+        activeBossBar = null;
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            player.hideBossBar(bar);
+        }
+    }
+
+    private BossBar.Color parseBarColor(String name) {
+        if (name != null) {
+            try {
+                return BossBar.Color.valueOf(name.toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                logger.warning("Unknown boss_bar.color '" + name + "' — defaulting to RED.");
+            }
+        }
+        return BossBar.Color.RED;
+    }
+
+    private BossBar.Overlay parseBarOverlay(String name) {
+        if (name != null) {
+            try {
+                return BossBar.Overlay.valueOf(name.toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                logger.warning("Unknown boss_bar.overlay '" + name + "' — defaulting to PROGRESS.");
+            }
+        }
+        return BossBar.Overlay.PROGRESS;
+    }
+
+    // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
 
     private void fireWarning(WarningDefinition def, long secondsRemaining) {
         logger.fine("Firing warning at " + def.getSecondsRemaining() + "s threshold (actual: " + secondsRemaining + "s).");
+
+        // Discord: send the "restarting soon" ping once per countdown, on the first
+        // warning threshold crossed (mirrors the comment in RestartTask.executeRestart()
+        // that assumed this already happened — it never actually fired until this wiring).
+        if (discordNotifiedThisCountdown.compareAndSet(false, true)) {
+            DiscordNotifier discordNotifier = plugin.getDiscordNotifier();
+            if (discordNotifier != null) {
+                String timeRemaining = ScheduleManager.formatDuration(secondsRemaining * 1000L);
+                int playerCount = plugin.getServer().getOnlinePlayers().size();
+                discordNotifier.sendScheduledRestartNotification(timeRemaining, playerCount);
+            }
+        }
 
         // Chat broadcast
         if (def.getMessage() != null && !def.getMessage().isBlank()) {

@@ -142,6 +142,14 @@ public class ScheduleManager {
             return;
         }
 
+        // Crash-loop safe mode: suppress starting a new *scheduled* (non-manual) restart task
+        // while the server has recently been crash-looping. Manual restarts (/srestart now,
+        // /srestart in) go through startManualTask() directly and are never affected.
+        if (plugin.getCrashLoopGuard() != null && plugin.getCrashLoopGuard().isSafeModeActive()) {
+            logger.warning("Crash-loop safe mode is active — suppressing the next scheduled restart.");
+            return;
+        }
+
         Optional<RestartWithSchedule> next = getNextRestartWithSchedule();
         if (next.isEmpty()) {
             logger.fine("No upcoming scheduled restarts found.");
@@ -209,6 +217,12 @@ public class ScheduleManager {
         }
         if (activeTask.compareAndSet(task, null)) {
             task.cancelTask();
+            // If this was a PerformanceTrigger-queued restart, resume TPS monitoring —
+            // PerformanceTrigger.fire() stops it unconditionally on the assumption the
+            // restart would actually happen.
+            if ("PERFORMANCE".equals(task.getInitiator()) && plugin.getPerformanceTrigger() != null) {
+                plugin.getPerformanceTrigger().resumeAfterCancelledTrigger();
+            }
             scheduleNext(); // Re-queue the next scheduled restart
             return true;
         }

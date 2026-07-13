@@ -23,7 +23,8 @@ import java.util.List;
  * 10     filler
  * 11     View Schedules (CLOCK)
  * 12     filler
- * 13     Create Schedule (CLOCK) — placeholder, shows "Coming soon"
+ * 13     Create Schedule (CLOCK) — prompts for a name via chat, then opens
+ *        {@link ScheduleEditorGUI} seeded with defaults
  * 14     filler
  * 15     Settings (ANVIL)
  * 16     filler
@@ -70,9 +71,8 @@ public class MainMenuGUI implements BaseGUI {
                 new ScheduleListGUI(plugin, this).open(player);
             }
             case 13 -> {
-                // Create Schedule — placeholder
-                player.sendMessage(MM.deserialize(
-                    "<yellow>Schedule creation wizard is coming soon!"));
+                // Create Schedule — prompt for a name via chat, then open the editor
+                promptCreateSchedule(player);
             }
             case 15 -> {
                 // Settings
@@ -113,14 +113,60 @@ public class MainMenuGUI implements BaseGUI {
 
         inventory.setItem(11, GuiItems.make(Material.CLOCK, "<yellow>View Schedules",
                 List.of("<gray>Browse and edit restart schedules")));
-        inventory.setItem(13, GuiItems.make(Material.CLOCK, "<gray>Create Schedule",
-                List.of("<dark_gray><i>Coming soon</i>")));
+        inventory.setItem(13, GuiItems.make(Material.CLOCK, "<yellow>Create Schedule",
+                List.of("<gray>Click to name a new schedule")));
         inventory.setItem(15, GuiItems.make(Material.ANVIL, "<yellow>Settings",
                 List.of("<gray>Toggle warnings, reload config")));
         inventory.setItem(20, GuiItems.make(Material.CHEST, "<yellow>Backup Settings",
                 List.of("<gray>Configure the pre-restart backup system")));
         inventory.setItem(22, GuiItems.make(Material.BOOK, "<yellow>Restart Logs",
                 List.of("<gray>View the last 10 restart entries")));
+    }
+
+    /**
+     * Prompts the player via chat for a new schedule name, validates it (non-blank,
+     * safe characters only, not already in use), then opens {@link ScheduleEditorGUI}
+     * seeded with defaults. Nothing is written to {@code schedules.yml} until the
+     * player clicks "Save & Close" in the editor.
+     */
+    private void promptCreateSchedule(Player player) {
+        plugin.getGUIManager().unregister(player);
+        player.closeInventory();
+        player.sendMessage(MM.deserialize(
+            "<yellow>Type a name for the new schedule in chat. "
+            + "<gray>(letters, numbers, '-' and '_' only; type <red>'cancel'</red> to abort)"));
+
+        plugin.getChatInputListener().registerInput(player.getUniqueId(), input -> {
+            String trimmed = input.trim();
+
+            if (trimmed.equalsIgnoreCase("cancel")) {
+                player.sendMessage(MM.deserialize("<gray>Schedule creation cancelled."));
+                open(player);
+                return;
+            }
+            if (trimmed.isBlank()) {
+                player.sendMessage(MM.deserialize("<red>Name cannot be blank."));
+                open(player);
+                return;
+            }
+            if (!trimmed.matches("[A-Za-z0-9_-]+")) {
+                player.sendMessage(MM.deserialize(
+                    "<red>Invalid name — only letters, numbers, '-' and '_' are allowed "
+                    + "(no spaces, dots, or colons)."));
+                open(player);
+                return;
+            }
+            boolean duplicate = plugin.getScheduleManager().getSchedules().stream()
+                    .anyMatch(s -> s.getName().equalsIgnoreCase(trimmed));
+            if (duplicate) {
+                player.sendMessage(MM.deserialize(
+                    "<red>A schedule named <white>" + trimmed + "</white> already exists."));
+                open(player);
+                return;
+            }
+
+            new ScheduleEditorGUI(plugin, trimmed, new ScheduleListGUI(plugin, this)).open(player);
+        });
     }
 
     /**

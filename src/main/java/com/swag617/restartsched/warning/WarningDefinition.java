@@ -1,7 +1,5 @@
 package com.swag617.restartsched.warning;
 
-import org.bukkit.configuration.ConfigurationSection;
-
 /**
  * Immutable data class representing a single warning threshold.
  *
@@ -26,33 +24,6 @@ public final class WarningDefinition {
         this.title    = title;
         this.subtitle = subtitle;
         this.sound    = sound;
-    }
-
-    /**
-     * Parses a {@link WarningDefinition} from a config section that has the shape:
-     * <pre>
-     * seconds: 300
-     * message: "..."
-     * title: "..."     # may be null / absent
-     * subtitle: "..."  # may be null / absent
-     * sound: "..."     # may be null / absent
-     * </pre>
-     *
-     * @param section the config section to parse
-     * @return parsed definition, or {@code null} if the section is invalid
-     */
-    public static WarningDefinition fromSection(ConfigurationSection section) {
-        if (section == null) return null;
-
-        int seconds = section.getInt("seconds", -1);
-        if (seconds < 0) return null;
-
-        String message  = section.isString("message")  ? section.getString("message")  : null;
-        String title    = section.isString("title")    ? section.getString("title")    : null;
-        String subtitle = section.isString("subtitle") ? section.getString("subtitle") : null;
-        String sound    = section.isString("sound")    ? section.getString("sound")    : null;
-
-        return new WarningDefinition(seconds, message, title, subtitle, sound);
     }
 
     // -------------------------------------------------------------------------

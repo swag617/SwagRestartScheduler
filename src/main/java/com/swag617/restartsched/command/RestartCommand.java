@@ -105,6 +105,15 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
 
         String initiator = sender.getName();
 
+        // Cancel existing manual task if present (mirrors handleIn) — otherwise this
+        // command would silently no-op while a previous manual countdown kept running,
+        // since ScheduleManager#startManualTask() refuses to replace a running manual task.
+        ScheduleManager sm = plugin.getScheduleManager();
+        RestartTask existing = sm.getActiveTask();
+        if (existing != null && existing.isManual()) {
+            existing.cancelTask();
+        }
+
         // Build broadcast to all players
         String broadcastRaw = getMessage("restart-initiated").replace("{reason}", reason);
         broadcastAll(broadcastRaw);
@@ -116,7 +125,7 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
         plugin.getLogger().info(MM.stripTags(consoleMsg));
 
         // Kick off with a tiny delay so broadcast is received before the server stops
-        plugin.getScheduleManager().startManualTask(3_000L, reason, initiator);
+        sm.startManualTask(3_000L, reason, initiator);
     }
 
     private void handleIn(CommandSender sender, String[] args) {
@@ -276,6 +285,11 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
             // Reload backup manager if it exists
             if (plugin.getBackupManager() != null) {
                 plugin.getBackupManager().reload();
+            }
+
+            // Reload crash-loop safe mode thresholds if it exists
+            if (plugin.getCrashLoopGuard() != null) {
+                plugin.getCrashLoopGuard().reload();
             }
 
             send(sender, getMessage("reload-success"));

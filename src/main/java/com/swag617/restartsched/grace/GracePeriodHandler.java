@@ -23,6 +23,8 @@ import java.util.regex.PatternSyntaxException;
  *   <li><b>worlds</b> — at least one online player is in a world whose name
  *       matches any entry in the configured world list.  Entries support a
  *       simple {@code *} wildcard, e.g. {@code "dungeon_*"}.</li>
+ *   <li><b>min-players-online</b> — the server's online player count is at least
+ *       {@code grace_period.conditions.min-players-online} (0 disables this check).</li>
  * </ul>
  *
  * <h3>Grace period lifecycle</h3>
@@ -87,6 +89,12 @@ public class GracePeriodHandler {
         }
 
         if (!worldPatterns.isEmpty() && isAnyPlayerInProtectedWorld(worldPatterns)) {
+            broadcastDelay();
+            return true;
+        }
+
+        int minPlayersOnline = plugin.getConfig().getInt("grace_period.conditions.min-players-online", 0);
+        if (minPlayersOnline > 0 && Bukkit.getOnlinePlayers().size() >= minPlayersOnline) {
             broadcastDelay();
             return true;
         }

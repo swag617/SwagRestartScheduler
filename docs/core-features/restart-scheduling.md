@@ -34,4 +34,4 @@ When the countdown reaches zero:
 
 ## What's not implemented yet
 
-The in-game GUI (`/srestart gui` → **Create Schedule**) is a placeholder — clicking it just shows "Schedule creation wizard is coming soon!" and does nothing else. To add a new schedule today, edit `schedules.yml` directly and run `/srestart reload`, or edit an *existing* schedule's days/times/timezone/priority through the GUI's schedule editor (that part does work — see [In-Game GUI](in-game-gui.md)).
+There is still no way to cancel a **schedule**-triggered countdown already in progress from a command — `/srestart cancel` only affects manual restarts. You would need to disable the schedule in `schedules.yml` and `/srestart reload`, though that only prevents the *next* occurrence, not one already counting down.

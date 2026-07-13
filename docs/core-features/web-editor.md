@@ -17,17 +17,11 @@ The editor has **no login or password logic of its own**. The `/swagapi/swagrest
 
 ## What it actually does today
 
-> **This is the biggest gap between "GUI editor" and reality — read this before relying on it.**
->
-> The page is a client-side form. Filling it out and clicking **Save** only writes your changes to the browser's `localStorage` — there is no server-side endpoint that reads or writes the plugin's actual `config.yml` / `schedules.yml` on disk. `WebEditorHttpHandler` (the Java side) does exactly one thing: serve the static `config-editor.html` file for every request path. There is no API behind it.
->
-> To actually apply changes:
->
-> 1. Fill out the form (schedules, warnings, grace period, performance triggers, pre-restart commands, backup settings)
-> 2. Click **Export config.yml** and/or **Export schedules.yml** — this downloads the generated YAML as files in your browser
-> 3. Manually replace the corresponding files in `plugins/SwagRestartScheduler/` on the server
-> 4. Run `/srestart reload` (or restart the server)
->
-> The editor also has an **Import** button that reads an existing `.yml`/`.yaml` file back into the form, since the page cannot fetch the server's current config on its own — if you want to edit what's already configured, you have to upload the current file first rather than the page loading it automatically.
+The page loads the server's **live** `config.yml` + `schedules.yml` automatically on open (`GET /api/config`, handled by `WebEditorHttpHandler`). Editing the form and clicking **Save to Server** applies changes immediately — `POST /api/config` and `POST /api/schedules` write the files to disk and trigger the same reload chain as `/srestart reload` (config, warnings, schedules, performance triggers, backup manager). No manual file copying or plugin restart is required.
 
-In short: treat it as an offline YAML-authoring tool with a nicer UI than hand-editing, not as a live remote-control panel. It's a reasonable way to avoid YAML syntax mistakes, but it does not push changes to a running server.
+- **Load from Server** — re-fetches the live config, discarding any unsaved edits in the form
+- **Save to Server** — saves and applies both files server-side
+- **Export config.yml** / **Export schedules.yml** — still available for taking an offline backup or hand-editing outside the browser
+- **Import** — still available for loading a `.yml`/`.yaml` file from disk into the form instead of the live server
+
+One exception: the **Discord** section (`discord.*` in `config.yml`) has no tab in this editor and is deliberately excluded from what **Save to Server** sends — since there's no UI for it, sending a hardcoded stub would silently overwrite your real Discord settings. Edit `discord.*` directly in `config.yml` and `/srestart reload` (or use the exported YAML as a reference, where it does appear with placeholder values).

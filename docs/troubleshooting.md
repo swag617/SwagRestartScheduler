@@ -4,13 +4,13 @@
 
 - Confirm **DiscordUtils** is installed and enabled — SwagRestartScheduler has no Discord integration of its own and relies entirely on it.
 - Check `discord.enabled` and the per-event `enabled` flags in `config.yml`.
-- Check `discord.webhook_id` isn't blank or still the placeholder `"your_webhook_id"` — either one silently skips the send.
-- Check the console around startup for `DiscordUtils integration resolved via ...` — if you instead see `DiscordUtils is enabled as a soft-dependency but its API could not be resolved via reflection`, the installed DiscordUtils version doesn't match the class/method signature this plugin looks for, and notifications are permanently disabled until the next server restart.
+- All three notification types are sent to whichever channel DiscordUtils' own `chat.channel-id` config key points at — there is no per-notification-type routing. Check DiscordUtils' `config.yml`, not this plugin's.
+- Check the console around startup for `DiscordUtils integration resolved via ...` — if you instead see `DiscordUtils is enabled as a soft-dependency but its API could not be resolved via reflection` (or a similar message naming `getInstance`/`getDiscordBot`/`sendMessage`), the installed DiscordUtils version doesn't match the class/method signature this plugin looks for, and notifications are permanently disabled until the next server restart.
 - See [Discord Notifications](core-features/discord-notifications.md) for the full resolution flow.
 
 ## Web config editor changes don't apply to the server
 
-This is expected, not a bug — the web editor currently has no server-side save endpoint. It builds YAML in your browser and lets you **download** `config.yml` / `schedules.yml`; you have to manually copy those files into `plugins/SwagRestartScheduler/` and run `/srestart reload`. See [Web Config Editor](core-features/web-editor.md) for the full explanation.
+The editor's **Save to Server** button applies changes immediately via `POST /api/config` / `POST /api/schedules` — if changes still aren't taking effect, check the browser console for a failed request and confirm SwagAPI is installed, enabled, and you're signed in (an expired session bounces you to `/login`). See [Web Config Editor](core-features/web-editor.md) for what is and isn't sent to the server (notably: the Discord section is intentionally excluded).
 
 ## Web editor URL / `/srestart web` says unavailable
 

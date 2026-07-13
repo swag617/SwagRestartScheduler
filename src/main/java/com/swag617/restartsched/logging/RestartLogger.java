@@ -24,12 +24,17 @@ import java.util.logging.Logger;
  * <h3>CSV columns</h3>
  * <pre>
  * timestamp,type,schedule,reason,initiator,players_online,
- *   grace_period_used,grace_duration_seconds,restart_duration_seconds
+ *   grace_period_used,grace_duration_seconds
  * </pre>
  *
- * <p>{@code restart_duration_seconds} is unknown at log time and is written as an
- * empty field.  Call {@link #updateLastRestartDuration(int)} after the fact if
- * the duration becomes known (best-effort; rewrites the last line of the CSV).</p>
+ * <p>{@code grace_period_used} and {@code grace_duration_seconds} reflect whether
+ * {@link com.swag617.restartsched.task.RestartTask} actually delayed the restart via the
+ * grace-period handler, and for how long. There used to be a third
+ * {@code restart_duration_seconds} column plus an {@code updateLastRestartDuration(int)}
+ * method meant to fill it in after the fact — both were removed as permanently-dead
+ * scaffolding: the server process exits immediately after this log call, so nothing in this
+ * plugin is ever in a position to observe (let alone report back) how long the restart itself
+ * took.</p>
  *
  * <p>All disk I/O is performed synchronously — this is called just before the
  * server shuts down so async scheduling is not an option at that point.</p>
@@ -39,7 +44,7 @@ public class RestartLogger {
     /** CSV header written on first file creation. */
     private static final String CSV_HEADER =
             "timestamp,type,schedule,reason,initiator,players_online,"
-            + "grace_period_used,grace_duration_seconds,restart_duration_seconds";
+            + "grace_period_used,grace_duration_seconds";
 
     private static final DateTimeFormatter ISO_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
@@ -78,12 +83,16 @@ public class RestartLogger {
     /**
      * Appends a restart event entry to both log files.
      *
-     * @param initiator    player name, "SCHEDULE", "CONSOLE", or "PERFORMANCE"
-     * @param reason       human-readable reason
-     * @param source       schedule name or "manual"
-     * @param type         "SCHEDULED", "MANUAL", or "PERFORMANCE"
+     * @param initiator            player name, "SCHEDULE", "CONSOLE", or "PERFORMANCE"
+     * @param reason               human-readable reason
+     * @param source               schedule name or "manual"
+     * @param type                 "SCHEDULED", "MANUAL", or "PERFORMANCE"
+     * @param gracePeriodUsed      whether the grace-period handler actually delayed this restart
+     * @param graceDurationSeconds how many seconds the grace period delayed the restart by
+     *                             (0 if {@code gracePeriodUsed} is {@code false})
      */
-    public void logRestart(String initiator, String reason, String source, String type) {
+    public void logRestart(String initiator, String reason, String source, String type,
+                            boolean gracePeriodUsed, int graceDurationSeconds) {
         Instant now         = Instant.now();
         String  timestamp   = ISO_FMT.format(now);
         String  key         = "restarts." + now.getEpochSecond();
@@ -97,11 +106,13 @@ public class RestartLogger {
         yaml.set(key + ".source",         source        != null ? source     : "unknown");
         yaml.set(key + ".type",           type          != null ? type       : "UNKNOWN");
         yaml.set(key + ".players_online", playersOnline);
+        yaml.set(key + ".grace_period_used",      gracePeriodUsed);
+        yaml.set(key + ".grace_duration_seconds", graceDurationSeconds);
         saveYaml(yaml);
 
         // --- CSV log ---
         appendCsvRow(timestamp, type, source, reason, initiator, playersOnline,
-                false, 0, "");
+                gracePeriodUsed, graceDurationSeconds);
 
         logger.info("Restart logged: [" + type + "] initiated by " + initiator
                 + " | reason: " + reason + " | source: " + source
@@ -113,6 +124,9 @@ public class RestartLogger {
      * {@code "PERFORMANCE"} and the average TPS at trigger time is appended
      * to the reason for auditing purposes.
      *
+     * <p>This logs the moment the trigger fired (queuing a restart), not the restart itself —
+     * grace-period data isn't known yet at this point, so it is always logged as unused.</p>
+     *
      * @param avgTps   average TPS at the moment of triggering
      * @param reason   configured reason string
      * @param action   "schedule" or "immediate"
@@ -120,58 +134,7 @@ public class RestartLogger {
     public void logPerformanceTrigger(double avgTps, String reason, String action) {
         String fullReason = reason + " (avg TPS: " + String.format("%.2f", avgTps)
                 + ", action: " + action + ")";
-        logRestart("PERFORMANCE", fullReason, "performance", "PERFORMANCE");
-    }
-
-    /**
-     * Best-effort update of the {@code restart_duration_seconds} field in the
-     * last row of the CSV file.  Rewrites only the last line.
-     *
-     * <p>This is a best-effort operation.  If the file cannot be read or the
-     * last line does not match the expected CSV format, the method logs a
-     * warning and returns without throwing.</p>
-     *
-     * @param seconds elapsed seconds from restart initiation to server-online
-     */
-    public void updateLastRestartDuration(int seconds) {
-        if (!csvFile.exists()) return;
-
-        try {
-            // Read the entire file, find the last non-empty line, replace its last field
-            byte[] bytes = java.nio.file.Files.readAllBytes(csvFile.toPath());
-            String content = new String(bytes, StandardCharsets.UTF_8);
-            String[] lines = content.split("\n", -1);
-
-            // Find last non-empty line index
-            int lastIdx = lines.length - 1;
-            while (lastIdx >= 0 && lines[lastIdx].isBlank()) {
-                lastIdx--;
-            }
-            if (lastIdx < 1) {
-                // Nothing past the header
-                return;
-            }
-
-            String lastLine = lines[lastIdx];
-            // The last field is restart_duration_seconds — replace it
-            int lastComma = lastLine.lastIndexOf(',');
-            if (lastComma < 0) return;
-
-            String updated = lastLine.substring(0, lastComma + 1) + seconds;
-            lines[lastIdx] = updated;
-
-            // Rebuild and write back
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < lines.length; i++) {
-                sb.append(lines[i]);
-                if (i < lines.length - 1) sb.append("\n");
-            }
-            java.nio.file.Files.write(csvFile.toPath(),
-                    sb.toString().getBytes(StandardCharsets.UTF_8));
-
-        } catch (IOException e) {
-            logger.warning("Could not update restart duration in CSV log: " + e.getMessage());
-        }
+        logRestart("PERFORMANCE", fullReason, "performance", "PERFORMANCE", false, 0);
     }
 
     // -------------------------------------------------------------------------
@@ -184,8 +147,7 @@ public class RestartLogger {
      */
     private void appendCsvRow(String timestamp, String type, String source,
                                String reason, String initiator, int playersOnline,
-                               boolean gracePeriodUsed, int graceDurationSeconds,
-                               String restartDurationSeconds) {
+                               boolean gracePeriodUsed, int graceDurationSeconds) {
         ensureCsvExists();
 
         String row = escapeCsv(timestamp)
@@ -195,8 +157,7 @@ public class RestartLogger {
                 + "," + escapeCsv(initiator)
                 + "," + playersOnline
                 + "," + gracePeriodUsed
-                + "," + graceDurationSeconds
-                + "," + restartDurationSeconds; // may be empty string
+                + "," + graceDurationSeconds;
 
         try (PrintWriter pw = new PrintWriter(
                 new BufferedWriter(new FileWriter(csvFile, StandardCharsets.UTF_8, true)))) {

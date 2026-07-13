@@ -25,12 +25,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 54-slot GUI for editing a single {@link RestartSchedule}.
+ * 54-slot GUI for editing a single {@link RestartSchedule}, or creating a new one.
  *
  * <p>A mutable working copy of the schedule's fields is held in this instance.
  * Changes are only persisted to {@code schedules.yml} when the player clicks
  * "Save & Close".  Closing the inventory without saving silently discards
- * changes.</p>
+ * changes.  The same save path is used for both editing an existing schedule
+ * ({@link #ScheduleEditorGUI(SwagRestartScheduler, RestartSchedule, ScheduleListGUI)})
+ * and creating a brand-new one
+ * ({@link #ScheduleEditorGUI(SwagRestartScheduler, String, ScheduleListGUI)}).</p>
  *
  * <p>Slot layout:</p>
  * <pre>
@@ -98,6 +101,30 @@ public class ScheduleEditorGUI implements BaseGUI {
                 : EnumSet.copyOf(srcDays);
         this.times         = new ArrayList<>(schedule.getTimes());
         this.priority      = schedule.getPriority();
+    }
+
+    /**
+     * Creates the editor for a brand-new schedule that does not yet exist in
+     * {@code schedules.yml}, seeded with sane defaults. Used by the "Create Schedule"
+     * flow (see {@link MainMenuGUI}, slot 13).
+     *
+     * <p>Nothing is written to disk until the player clicks "Save & Close" — the same
+     * {@link #saveToFile()} path used for editing an existing schedule handles this
+     * correctly, since {@code ConfigurationSection#set(...)} creates missing YAML paths.</p>
+     *
+     * @param newScheduleName the validated, not-yet-used schedule name (caller is
+     *                        responsible for uniqueness/format validation before calling)
+     */
+    public ScheduleEditorGUI(SwagRestartScheduler plugin, String newScheduleName,
+                             ScheduleListGUI parent) {
+        this.plugin        = plugin;
+        this.scheduleName  = newScheduleName;
+        this.parent        = parent;
+        this.enabled       = true;
+        this.timezone      = ZoneId.of("UTC");
+        this.activeDays    = EnumSet.noneOf(DayOfWeek.class);
+        this.times         = new ArrayList<>();
+        this.priority      = 1;
     }
 
     // -------------------------------------------------------------------------

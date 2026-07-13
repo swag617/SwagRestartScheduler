@@ -58,6 +58,21 @@ warnings:
   # Action bar format — use {seconds} as placeholder
   action-bar-format: "<red><bold>Restarting in {seconds}s"
 
+# BossBar countdown for the FINAL moments before restart only.
+# A 30-60s boss bar was judged too annoying during review — this intentionally only shows
+# in the last few seconds. seconds-threshold is hard-capped at 10 in code no matter what
+# this is set to, so it can never become a long/naggy countdown.
+boss_bar:
+  enabled: true
+  # Seconds before restart when the bar appears (hard-capped at 10 — see note above).
+  seconds-threshold: 10
+  # BossBar.Color: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
+  color: "RED"
+  # BossBar.Overlay: PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
+  overlay: "PROGRESS"
+  # Use {reason} and {seconds} as placeholders
+  title-format: "<red><bold>{reason} — restarting in {seconds}s"
+
 # Built-in backup system — creates a zip of your world folders before each restart
 backup:
   enabled: false
@@ -88,6 +103,9 @@ grace_period:
     worlds:
       - "world_boss"
       - "dungeon_*"
+    # Delay while at least this many players are online (0 disables this condition).
+    # Competitor-parity addition — lets admins avoid restarting during busy periods.
+    min-players-online: 0
   # How often (seconds) to re-check conditions once a delay is active
   check_interval_seconds: 5
   # Message broadcast to all players when the restart is delayed
@@ -125,6 +143,33 @@ performance_triggers:
   # Minimum minutes between consecutive trigger fires (prevents rapid restart loops)
   cooldown_minutes: 60
 
+# Cross-plugin event bus — broadcasts a "server.restart.pending" event via SwagAPI's shared
+# IEventBusService (soft dep) at the confirmed point of no return, so other plugins can react
+# before the server actually goes down. No-op if SwagAPI/its event bus isn't installed.
+event_bus:
+  enabled: true
+  # Fallback ETA (seconds) used when no pre-restart backup will run.
+  default-eta-seconds: 3
+  # Added to the ETA when a pre-restart backup will run (backup.enabled: true) — backups add
+  # real delay between this event firing and the server actually stopping.
+  backup-eta-seconds: 15
+
+# Crash-loop safe mode — detects the JVM dying without a clean onDisable() (crash, kill, host
+# reboot) via a shutdown.lock marker file. If enough unclean shutdowns happen close together,
+# scheduled and performance-triggered restarts are suppressed for a cooldown period so the
+# server isn't repeatedly restarted back into whatever is crashing it. Manual restarts
+# (/srestart now, /srestart in) are never suppressed.
+crash-loop-safe-mode:
+  enabled: true
+  # How many unclean shutdowns within the detection window trigger safe mode.
+  unclean-shutdown-threshold: 2
+  # Rolling window (minutes) in which unclean shutdowns are counted.
+  detection-window-minutes: 15
+  # How long (minutes) scheduled/performance-triggered restarts are suppressed once triggered.
+  safe-mode-cooldown-minutes: 30
+  # Discord alert message — {crash_count}, {window}, {cooldown} placeholders.
+  discord-message: "⚠ CRASH LOOP DETECTED: {crash_count} unclean shutdown(s) within {window}m. Scheduled/performance-triggered restarts suppressed for {cooldown}m."
+
 # Web config editor — served through SwagAPI's shared web panel (no port of its own)
 web-editor:
   # Whether to register the config editor with SwagAPI's IWebService.
@@ -132,10 +177,12 @@ web-editor:
   enabled: true
 
 # Discord notifications — requires DiscordUtils soft-dep
+# All notifications are sent via DiscordUtils' DiscordBot#sendMessage(String), which always
+# targets DiscordUtils' own "chat.channel-id" config key. DiscordUtils has no per-webhook or
+# per-notification-type channel routing, so there is no way to send these three notification
+# types to different channels.
 discord:
   enabled: true
-  # The webhook ID configured in your DiscordUtils setup
-  webhook_id: "your_webhook_id"
   notifications:
     scheduled_restart:
       enabled: true

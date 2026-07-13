@@ -120,6 +120,25 @@ public class PerformanceTrigger {
         start();
     }
 
+    /**
+     * Resumes TPS monitoring after a {@code PERFORMANCE}-initiated restart was cancelled
+     * (e.g. via {@code /restart cancel}).  Without this, {@link #fire()} permanently stops
+     * both the evaluation task and the {@link TpsMonitor} the moment it queues a restart —
+     * on the (often wrong) assumption that the restart will actually happen — and monitoring
+     * would otherwise stay dark until the next {@code /restart reload} or a full plugin/server
+     * restart.
+     *
+     * <p>Safe to call even if monitoring is already running. Does not reset
+     * {@link #lastTriggerMillis}, so the configured cooldown still applies — this prevents an
+     * immediate re-trigger loop right after a cancel.</p>
+     */
+    public void resumeAfterCancelledTrigger() {
+        if (!isEnabled()) return;
+        logger.info("A performance-triggered restart was cancelled — resuming TPS monitoring "
+                + "(cooldown from the original trigger still applies).");
+        start();
+    }
+
     // -------------------------------------------------------------------------
     // Query
     // -------------------------------------------------------------------------
@@ -135,6 +154,13 @@ public class PerformanceTrigger {
 
     private void evaluate() {
         if (!isEnabled()) return;
+
+        // Crash-loop safe mode: suppress performance-triggered restarts while the server has
+        // recently been crash-looping — a low-TPS trigger firing right after a crash can just
+        // restart the server back into whatever is crashing it.
+        if (plugin.getCrashLoopGuard() != null && plugin.getCrashLoopGuard().isSafeModeActive()) {
+            return;
+        }
 
         double threshold = getTpsThreshold();
         if (!tpsMonitor.isConsistentlyBelow(threshold)) {

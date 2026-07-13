@@ -1,5 +1,7 @@
 package com.swag617.restartsched.task;
 
+import com.SwagDev.SwagAPI.api.IEventBusService;
+import com.SwagDev.SwagAPI.events.SwagCrossPluginMessageEvent;
 import com.swag617.restartsched.SwagRestartScheduler;
 import com.swag617.restartsched.backup.BackupManager;
 import com.swag617.restartsched.discord.DiscordNotifier;
@@ -7,8 +9,12 @@ import com.swag617.restartsched.grace.GracePeriodHandler;
 import com.swag617.restartsched.logging.RestartLogger;
 import com.swag617.restartsched.schedule.ScheduleManager;
 import com.swag617.restartsched.warning.WarningManager;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 /**
@@ -64,6 +70,9 @@ public class RestartTask extends BukkitRunnable {
     /** Whether this task has already triggered the restart. */
     private volatile boolean executed = false;
 
+    /** Whether {@link #checkGraceOrRestart()} ever actually delayed the restart. */
+    private boolean gracePeriodUsed = false;
+
     /**
      * @param plugin                plugin instance
      * @param millisUntil           milliseconds from now until restart
@@ -109,7 +118,7 @@ public class RestartTask extends BukkitRunnable {
         long currentSecond = millisRemaining / 1000L;
         if (currentSecond != lastTickedSecond) {
             lastTickedSecond = currentSecond;
-            plugin.getWarningManager().tick(millisRemaining);
+            plugin.getWarningManager().tick(millisRemaining, reason);
         }
     }
 
@@ -144,6 +153,11 @@ public class RestartTask extends BukkitRunnable {
         if (plugin.getPreRestartCommandExecutor() != null) {
             plugin.getPreRestartCommandExecutor().cancelAll();
         }
+
+        // Tear down any active final-countdown boss bar (WarningManager) so a cancelled
+        // restart doesn't leave a stuck bar on players' screens. Safe to call even if no
+        // bar is currently showing.
+        plugin.getWarningManager().hideBossBar();
 
         if (!isCancelled()) {
             try {
@@ -187,6 +201,12 @@ public class RestartTask extends BukkitRunnable {
      * If no delay is needed (or grace period is disabled), executes the restart.
      */
     private void checkGraceOrRestart() {
+        // The countdown has reached zero — the final-10-seconds boss bar (if any) is no
+        // longer relevant on this pass: either the restart executes now, or a grace-period
+        // delay begins and the per-second ticks driving the bar stop firing until (if ever)
+        // another countdown starts. Safe to call repeatedly (each grace re-check hits this).
+        plugin.getWarningManager().hideBossBar();
+
         // Record when we first hit zero so max_delay_minutes can be enforced
         if (gracePeriodStartMillis < 0) {
             gracePeriodStartMillis = System.currentTimeMillis();
@@ -195,6 +215,7 @@ public class RestartTask extends BukkitRunnable {
         if (gracePeriodHandler != null && gracePeriodHandler.shouldDelay(gracePeriodStartMillis)) {
             // Conditions require a delay — cancel the per-tick timer and schedule a
             // one-shot re-check after the configured check interval.
+            gracePeriodUsed = true;
             long delayTicks = gracePeriodHandler.getCheckIntervalTicks();
             if (!isCancelled()) {
                 try { cancel(); } catch (IllegalStateException ignored) { }
@@ -218,6 +239,12 @@ public class RestartTask extends BukkitRunnable {
         if (executed) return;
         executed = true;
 
+        // Confirmed true point of no return — nothing after this can cancel the restart
+        // (this covers the backup-delay window too, since backups run further down this
+        // same method). Broadcast to the wider plugin ecosystem via SwagAPI's shared event
+        // bus immediately, before anything else runs.
+        publishRestartPendingEvent();
+
         if (!isCancelled()) {
             try {
                 cancel();
@@ -225,8 +252,12 @@ public class RestartTask extends BukkitRunnable {
         }
 
         // Log before the server goes down
+        int graceDurationSeconds = gracePeriodStartMillis >= 0
+                ? (int) ((System.currentTimeMillis() - gracePeriodStartMillis) / 1000L)
+                : 0;
         RestartLogger restartLogger = plugin.getRestartLogger();
-        restartLogger.logRestart(initiator, reason, sourceName, manual ? "MANUAL" : "SCHEDULED");
+        restartLogger.logRestart(initiator, reason, sourceName, manual ? "MANUAL" : "SCHEDULED",
+                gracePeriodUsed, graceDurationSeconds);
 
         logger.info("Executing restart. Initiator: " + initiator
                 + " | Reason: " + reason + " | Source: " + sourceName);
@@ -236,9 +267,9 @@ public class RestartTask extends BukkitRunnable {
             if (manual) {
                 discordNotifier.sendManualRestartNotification(reason, initiator);
             }
-            // For scheduled restarts the "scheduled_restart" notification was already
-            // sent by WarningManager's first warning broadcast; a final "restarting now"
-            // ping here is intentionally omitted to avoid duplicate messages.
+            // The "scheduled_restart" notification was already sent by WarningManager's
+            // first warning broadcast (see WarningManager#fireWarning); a final
+            // "restarting now" ping here is intentionally omitted to avoid duplicate messages.
         }
 
         // If backup is enabled, run it first — doRestart() is the callback
@@ -247,6 +278,53 @@ public class RestartTask extends BukkitRunnable {
             backupManager.runBackup(this::doRestart);
         } else {
             doRestart();
+        }
+    }
+
+    /**
+     * Publishes a {@code "server.restart.pending"} event via SwagAPI's shared
+     * {@link IEventBusService}, if SwagAPI is installed and the service is registered
+     * (soft dependency — mirrors the null-check idiom used by
+     * {@link com.swag617.restartsched.web.WebEditorModule} for {@code IWebService}).
+     *
+     * <p>Payload:</p>
+     * <ul>
+     *   <li>{@code etaSeconds} ({@code long}) — best-effort estimate of how many seconds
+     *       remain until the server actually goes down. Computed from
+     *       {@code event_bus.default-eta-seconds} plus, if a pre-restart backup will run,
+     *       {@code event_bus.backup-eta-seconds} (backups add real delay after this point).</li>
+     *   <li>{@code initiator} ({@code String}) — this task's initiator field (player name,
+     *       {@code "SCHEDULE"}, {@code "CONSOLE"}, or {@code "PERFORMANCE"}).</li>
+     *   <li>{@code scheduleId} ({@code String}, nullable) — the source schedule name for
+     *       scheduled restarts, or {@code null} for manual/performance-triggered ones.</li>
+     * </ul>
+     */
+    private void publishRestartPendingEvent() {
+        if (!plugin.getConfig().getBoolean("event_bus.enabled", true)) return;
+
+        RegisteredServiceProvider<IEventBusService> rsp =
+                Bukkit.getServicesManager().getRegistration(IEventBusService.class);
+        if (rsp == null) return;
+
+        long baseEtaSeconds = plugin.getConfig().getLong("event_bus.default-eta-seconds", 3L);
+        BackupManager backupManager = plugin.getBackupManager();
+        boolean backupWillRun = backupManager != null && backupManager.isEnabled();
+        long backupEtaSeconds = backupWillRun
+                ? plugin.getConfig().getLong("event_bus.backup-eta-seconds", 15L)
+                : 0L;
+        long etaSeconds = baseEtaSeconds + backupEtaSeconds;
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("etaSeconds", etaSeconds);
+        data.put("initiator", initiator);
+        data.put("scheduleId", manual ? null : sourceName);
+
+        try {
+            rsp.getProvider().publish(new SwagCrossPluginMessageEvent(
+                    "server.restart.pending", plugin.getName(), data, null));
+        } catch (Exception e) {
+            // Never let a cross-plugin publish failure block the actual restart.
+            logger.warning("Failed to publish server.restart.pending event: " + e.getMessage());
         }
     }
 

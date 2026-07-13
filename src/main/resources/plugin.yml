@@ -1,8 +1,8 @@
 name: SwagRestartScheduler
-version: 2.0.0
+version: 2.1.0
 main: com.swag617.restartsched.SwagRestartScheduler
 api-version: 1.20
-softdepend: [DiscordUtils, PlaceholderAPI, WorldGuard, CombatLogX, Vault, SwagAPI]
+softdepend: [DiscordUtils, PlaceholderAPI, CombatLogX, SwagAPI]
 
 commands:
   srestart:

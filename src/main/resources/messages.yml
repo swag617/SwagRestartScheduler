@@ -51,4 +51,3 @@ must-be-player: "<red>This command can only be run by a player."
 # Usage / unknown sub-command
 unknown-subcommand: "<red>Unknown sub-command. Usage: <white>/restart <now|in|cancel|schedules|status|reload>"
 usage-restart-in: "<red>Usage: <white>/restart in <time> [reason]"
-usage-restart-now: "<red>Usage: <white>/restart now [reason]"
