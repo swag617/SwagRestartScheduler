@@ -151,6 +151,7 @@ public class DiscordNotifier {
         Map<String, Object> data = new HashMap<>();
         data.put("webhook", webhookName);
         data.put("content", message);
+        data.put("username", "Server Status");
 
         rsp.getProvider().publish(new SwagCrossPluginMessageEvent(
                 "discordutils:notify", "SwagRestartScheduler", data, null));
