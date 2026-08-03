@@ -2,11 +2,11 @@
 
 ## Discord notifications aren't sending
 
-- Confirm **DiscordUtils** is installed and enabled — SwagRestartScheduler has no Discord integration of its own and relies entirely on it.
+- Confirm **SwagAPI** is installed and enabled — notifications are published on its shared event bus (`IEventBusService`); if that service isn't registered, sends are dropped with a one-time console warning.
+- Confirm **DiscordUtils** is installed, enabled, and subscribed to the `discordutils:notify` channel — SwagRestartScheduler has no Discord integration of its own and relies entirely on it to actually post the message.
 - Check `discord.enabled` and the per-event `enabled` flags in `config.yml`.
-- All three notification types are sent to whichever channel DiscordUtils' own `chat.channel-id` config key points at — there is no per-notification-type routing. Check DiscordUtils' `config.yml`, not this plugin's.
-- Check the console around startup for `DiscordUtils integration resolved via ...` — if you instead see `DiscordUtils is enabled as a soft-dependency but its API could not be resolved via reflection` (or a similar message naming `getInstance`/`getDiscordBot`/`sendMessage`), the installed DiscordUtils version doesn't match the class/method signature this plugin looks for, and notifications are permanently disabled until the next server restart.
-- See [Discord Notifications](core-features/discord-notifications.md) for the full resolution flow.
+- Confirm `discord.webhook-name` matches a `webhooks.<name>` entry in **DiscordUtils'** own `config.yml` — SwagRestartScheduler does not manage Discord webhooks itself.
+- See [Discord Notifications](core-features/discord-notifications.md) for the full event-bus flow.
 
 ## Web config editor changes don't apply to the server
 

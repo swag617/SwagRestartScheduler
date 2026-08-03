@@ -30,3 +30,7 @@ Either way, the trigger is logged (console + restart log, with the average TPS r
 ## Cooldown
 
 After firing, the trigger will not fire again for `cooldown_minutes`. The cooldown timer resets on `/srestart reload`.
+
+## Suppression during crash-loop safe mode
+
+If [Crash-Loop Safe Mode](crash-loop-safe-mode.md) is currently active, performance-triggered restarts are suppressed entirely regardless of TPS — the assumption being that repeatedly crash-looping is a worse symptom than temporarily degraded TPS. Manual restarts are unaffected.

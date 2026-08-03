@@ -4,7 +4,7 @@ SwagRestartScheduler reads three files from `plugins/SwagRestartScheduler/`:
 
 | File | Purpose |
 |---|---|
-| `config.yml` | General settings, warnings, backup, grace period, pre-restart commands, performance triggers, web editor, Discord |
+| `config.yml` | General settings, warnings, boss bar, backup, grace period, pre-restart commands, performance triggers, event bus, crash-loop safe mode, web editor, Discord |
 | `schedules.yml` | Named restart schedules |
 | `messages.yml` | Every player-facing / command-response message, in MiniMessage format |
 
@@ -40,6 +40,19 @@ warnings:
 
 Each entry in `intervals` fires once when the countdown crosses `seconds` remaining. `title`/`subtitle`/`sound` are optional — leave them `null` to send chat-only. `sound` must match a Bukkit `Sound` enum name (e.g. `ENTITY_ENDER_DRAGON_GROWL`); invalid names are skipped with a warning. See [Warnings & Countdown](../core-features/warnings.md) for the full behavior.
 
+## `boss_bar`
+
+```yaml
+boss_bar:
+  enabled: true
+  seconds-threshold: 10
+  color: "RED"
+  overlay: "PROGRESS"
+  title-format: "<red><bold>{reason} — restarting in {seconds}s"
+```
+
+A final-moments-only countdown boss bar, separate from the action bar above. `seconds-threshold` is hard-capped at 10 in code no matter what it's set to here — a longer bar was judged too naggy during review. `color`/`overlay` must match Adventure's `BossBar.Color`/`BossBar.Overlay` enum names; invalid values fall back to `RED`/`PROGRESS` with a warning. See [Warnings & Countdown](../core-features/warnings.md#boss-bar-countdown).
+
 ## `backup`
 
 ```yaml
@@ -63,11 +76,12 @@ grace_period:
   conditions:
     combat: true
     worlds: ["world_boss", "dungeon_*"]
+    min-players-online: 0
   check_interval_seconds: 5
   message: "<yellow>Restart delayed - players in protected area"
 ```
 
-Disabled by default. `worlds` supports a simple `*` wildcard. Players with `swagrestart.bypass.grace` are excluded from both conditions. See [Grace Period](../core-features/grace-period.md).
+Disabled by default. `worlds` supports a simple `*` wildcard. `min-players-online` delays the restart while at least that many players are online (`0` disables the check). Players with `swagrestart.bypass.grace` are excluded from the `combat` and `worlds` conditions. See [Grace Period](../core-features/grace-period.md).
 
 ## `pre_restart`
 
@@ -96,6 +110,30 @@ performance_triggers:
 
 Disabled by default. See [Performance Triggers](../core-features/performance-triggers.md) for how the rolling TPS window and cooldown work.
 
+## `event_bus`
+
+```yaml
+event_bus:
+  enabled: true
+  default-eta-seconds: 3
+  backup-eta-seconds: 15
+```
+
+Publishes a `server.restart.pending` event on SwagAPI's shared event bus right before a restart executes, for any other Swag617 plugin to react to. No-ops if SwagAPI's event bus isn't registered. See [Discord Notifications](../core-features/discord-notifications.md#cross-plugin-restart-pending-event).
+
+## `crash-loop-safe-mode`
+
+```yaml
+crash-loop-safe-mode:
+  enabled: true
+  unclean-shutdown-threshold: 2
+  detection-window-minutes: 15
+  safe-mode-cooldown-minutes: 30
+  discord-message: "⚠ CRASH LOOP DETECTED: {crash_count} unclean shutdown(s) within {window}m. Scheduled/performance-triggered restarts suppressed for {cooldown}m."
+```
+
+Detects the JVM dying without a clean `onDisable()` and temporarily suppresses scheduled/performance-triggered restarts if it happens repeatedly in a short window. Manual restarts are never suppressed. See [Crash-Loop Safe Mode](../core-features/crash-loop-safe-mode.md).
+
 ## `web-editor`
 
 ```yaml
@@ -110,7 +148,7 @@ Gates whether the config editor registers with SwagAPI's shared web panel at all
 ```yaml
 discord:
   enabled: true
-  webhook_id: "your_webhook_id"
+  webhook-name: "restart"
   notifications:
     scheduled_restart:
       enabled: true
@@ -123,7 +161,7 @@ discord:
       message: "Server has restarted successfully!"
 ```
 
-`webhook_id` refers to a webhook configured *inside the separate DiscordUtils plugin* — SwagRestartScheduler does not manage Discord webhooks itself. If `webhook_id` is left at the placeholder value or blank, or DiscordUtils isn't installed, notifications are silently skipped. See [Discord Notifications](../core-features/discord-notifications.md).
+`webhook-name` refers to a named entry under `webhooks:` configured *inside the separate DiscordUtils plugin* — SwagRestartScheduler does not manage Discord webhooks itself, it publishes messages on SwagAPI's shared event bus for DiscordUtils to relay. If DiscordUtils isn't installed or has no matching webhook entry, notifications are silently dropped. See [Discord Notifications](../core-features/discord-notifications.md).
 
 ## `schedules.yml`
 

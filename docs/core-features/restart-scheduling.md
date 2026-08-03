@@ -32,6 +32,10 @@ When the countdown reaches zero:
 4. If [backups](backups.md) are enabled, the backup runs first; the actual restart happens in the backup's completion callback either way (a failed backup does not block the restart).
 5. `general.use-spigot-restart` decides between `spigot().restart()` and `getServer().shutdown()`.
 
+## Suppression during crash-loop safe mode
+
+If [Crash-Loop Safe Mode](crash-loop-safe-mode.md) is currently active, `ScheduleManager` will not start a new **scheduled** restart countdown at all. Manual restarts (`/srestart now`, `/srestart in`) are never suppressed.
+
 ## What's not implemented yet
 
 There is still no way to cancel a **schedule**-triggered countdown already in progress from a command — `/srestart cancel` only affects manual restarts. You would need to disable the schedule in `schedules.yml` and `/srestart reload`, though that only prevents the *next* occurrence, not one already counting down.

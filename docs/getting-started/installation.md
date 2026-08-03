@@ -4,21 +4,21 @@
 
 - **Paper 1.20.4** or newer — the plugin is built against `paper-api 1.20.4-R0.1-SNAPSHOT` with `api-version: 1.20` declared in `plugin.yml`
 - **Java 21**
+- **SwagAPI** — a **hard dependency** (`depend: [SwagAPI]` in `plugin.yml`). Bukkit will refuse to enable SwagRestartScheduler if SwagAPI isn't installed and enabled first. It powers the [web config editor](../core-features/web-editor.md), [Discord notifications](../core-features/discord-notifications.md) (via its shared event bus), and the `server.restart.pending` cross-plugin event.
 
 ## 2. Install
 
-Drop `SwagRestartScheduler.jar` into your server's `plugins/` folder. No other plugin is required — scheduling, warnings, grace period, pre-restart commands, backups, and logging all work standalone.
+Install [SwagAPI](https://github.com/swag617/SwagAPI) first, then drop `SwagRestartScheduler.jar` into your server's `plugins/` folder. Scheduling, warnings, grace period, pre-restart commands, backups, and logging all work with just SwagAPI present — no other plugin is required.
 
 ## 3. Optional integrations
 
-Install any of these *before* starting the server if you want the matching feature. All four are soft-dependencies: SwagRestartScheduler starts fine without them and simply disables the related feature (with a console warning).
+Install any of these *before* starting the server if you want the matching feature. All three are soft-dependencies: SwagRestartScheduler starts fine without them and simply disables the related feature (with a console warning).
 
 | Plugin | Enables |
 |---|---|
-| DiscordUtils | [Discord notifications](../core-features/discord-notifications.md) |
+| DiscordUtils | [Discord notifications](../core-features/discord-notifications.md) (relayed through SwagAPI's event bus) |
 | PlaceholderAPI | Placeholder substitution in [pre-restart commands](../core-features/pre-restart-commands.md) |
 | CombatLogX | The combat condition in the [grace period](../core-features/grace-period.md) system |
-| SwagAPI | The [web config editor](../core-features/web-editor.md) |
 
 > `plugin.yml` also lists `WorldGuard` and `Vault` as soft-dependencies, but neither is referenced anywhere in the plugin's code. There is currently no WorldGuard or Vault integration — installing them has no effect.
 

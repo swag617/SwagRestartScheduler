@@ -8,12 +8,21 @@ Disabled by default (`grace_period.enabled: false`). When enabled, the plugin ca
 |---|---|---|
 | `combat` | CombatLogX installed | Delays while any online player (without the bypass permission) is currently tagged in combat |
 | `worlds` | — | Delays while any online player (without the bypass permission) is in a world matching one of the configured name patterns |
+| `min-players-online` | — | Delays while the server's online player count is at least this many (`0` disables the check) |
 
-`worlds` entries support a single `*` wildcard, e.g. `dungeon_*` matches `dungeon_1`, `dungeon_boss`, etc. If CombatLogX is not installed, the `combat` condition is silently ignored (treated as never true) rather than erroring.
+`worlds` entries support a single `*` wildcard, e.g. `dungeon_*` matches `dungeon_1`, `dungeon_boss`, etc. If CombatLogX is not installed, the `combat` condition is silently ignored (treated as never true) rather than erroring. `min-players-online` is a straight `Bukkit.getOnlinePlayers().size()` check — it is **not** subject to the bypass permission described below (that only affects the per-player `combat`/`worlds` checks).
+
+```yaml
+grace_period:
+  conditions:
+    combat: true
+    worlds: ["world_boss", "dungeon_*"]
+    min-players-online: 0
+```
 
 ## Bypass
 
-Players with `swagrestart.bypass.grace` are excluded from both checks — their combat status and current world never trigger a delay.
+Players with `swagrestart.bypass.grace` are excluded from the `combat` and `worlds` checks — their combat status and current world never trigger a delay. This does not affect `min-players-online`, which counts all online players regardless of permission.
 
 ## Maximum delay
 

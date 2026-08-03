@@ -13,6 +13,7 @@
   - [Pre-Restart Commands](core-features/pre-restart-commands.md)
   - [Backups](core-features/backups.md)
   - [Performance Triggers](core-features/performance-triggers.md)
+  - [Crash-Loop Safe Mode](core-features/crash-loop-safe-mode.md)
   - [Discord Notifications](core-features/discord-notifications.md)
   - [Web Config Editor](core-features/web-editor.md)
   - [In-Game GUI](core-features/in-game-gui.md)

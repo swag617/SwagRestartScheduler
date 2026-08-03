@@ -1,6 +1,6 @@
 # Web Config Editor
 
-A single-page HTML config builder for `config.yml` and `schedules.yml`, mounted through **SwagAPI's** shared web panel at `/swagapi/swagrestartscheduler/`. Requires SwagAPI to be installed and enabled — without it, `WebEditorModule` logs a warning on startup and the editor is simply unavailable (the rest of the plugin is unaffected).
+A single-page HTML config builder for `config.yml` and `schedules.yml`, mounted through **SwagAPI's** shared web panel at `/swagapi/swagrestartscheduler/`. SwagAPI is a hard dependency of the whole plugin (see [Installation](../getting-started/installation.md)), so in practice its `IWebService` is always present — but `WebEditorModule` itself only looks up `IWebService` defensively at runtime and logs a warning instead of registering if that lookup ever comes back empty (e.g. SwagAPI's web server is disabled via `web-server.enabled: false`), rather than assuming it's always there.
 
 Enable/disable registration entirely with:
 
