@@ -1,8 +1,11 @@
 package com.swag617.restartsched.config;
 
+import com.SwagDev.SwagAPI.api.IPrefixService;
 import com.swag617.restartsched.SwagRestartScheduler;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.ServicesManager;
+import org.bukkit.plugin.RegisteredServiceProvider;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,11 +41,20 @@ public class ConfigManager {
     private FileConfiguration schedulesConfig;
     private FileConfiguration messagesConfig;
 
+    // SwagAPI's central chat-prefix override service (hard dep, resolved once at startup).
+    // Null-safe: if unavailable for any reason, messages.yml's own "prefix" value is used
+    // unchanged, exactly as before this integration existed.
+    private IPrefixService prefixService;
+
     public ConfigManager(SwagRestartScheduler plugin) {
         this.plugin        = plugin;
         this.logger        = plugin.getLogger();
         this.schedulesFile = new File(plugin.getDataFolder(), "schedules.yml");
         this.messagesFile  = new File(plugin.getDataFolder(), "messages.yml");
+
+        ServicesManager sm = plugin.getServer().getServicesManager();
+        RegisteredServiceProvider<IPrefixService> prefixProvider = sm.getRegistration(IPrefixService.class);
+        this.prefixService = (prefixProvider != null) ? prefixProvider.getProvider() : null;
     }
 
     // -------------------------------------------------------------------------
@@ -105,10 +117,29 @@ public class ConfigManager {
     }
 
     /**
+     * Returns the effective player-facing chat prefix.
+     *
+     * <p>Normally this is simply the {@code prefix} value configured in messages.yml.
+     * If SwagAPI's {@link IPrefixService} is available and an admin has configured a
+     * global or per-plugin override in the web panel, that override is returned instead
+     * — the messages.yml value is passed to it only as the fallback, so a server that
+     * never touches the panel sees no change in behaviour.</p>
+     *
+     * @return the effective prefix, or an empty string if messages.yml has not loaded
+     */
+    public String getPrefix() {
+        if (messagesConfig == null) return "";
+        String fallbackPrefix = messagesConfig.getString("prefix", "");
+        return (prefixService != null)
+                ? prefixService.getPrefix("SwagRestartScheduler", fallbackPrefix)
+                : fallbackPrefix;
+    }
+
+    /**
      * Retrieves a message from {@code messages.yml}.
      *
-     * <p>The prefix defined under {@code prefix} is prepended automatically unless
-     * {@code addPrefix} is {@code false}.</p>
+     * <p>The effective prefix (see {@link #getPrefix()}) is prepended automatically
+     * unless {@code addPrefix} is {@code false}.</p>
      *
      * @param key       dotted YAML key
      * @param addPrefix whether to prepend the prefix
@@ -118,8 +149,7 @@ public class ConfigManager {
         if (messagesConfig == null) return "";
         String value = messagesConfig.getString(key, "");
         if (addPrefix && !value.isBlank()) {
-            String prefix = messagesConfig.getString("prefix", "");
-            value = prefix + value;
+            value = getPrefix() + value;
         }
         return value;
     }

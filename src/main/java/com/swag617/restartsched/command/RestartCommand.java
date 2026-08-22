@@ -430,7 +430,7 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
     private void send(CommandSender sender, String mmString, boolean withPrefix) {
         if (mmString == null || mmString.isBlank()) return;
         String finalMsg = withPrefix
-                ? plugin.getConfigManager().getMessage("prefix", false) + mmString
+                ? plugin.getConfigManager().getPrefix() + mmString
                 : mmString;
         sender.sendMessage(MM.deserialize(finalMsg));
     }
