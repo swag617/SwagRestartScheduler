@@ -289,6 +289,7 @@
     </label>
     <button class="btn btn-primary" id="btnExportConfig">Export config.yml</button>
     <button class="btn btn-primary" id="btnExportSchedules">Export schedules.yml</button>
+    <button class="btn btn-primary" id="btnExportMessages">Export messages.yml</button>
     <button class="btn btn-secondary" id="btnLoadServer" title="Reload live config.yml + schedules.yml from the server, discarding unsaved changes">Load from Server</button>
     <button class="btn btn-success" id="btnSaveLocal">Save to Browser</button>
     <button class="btn btn-success" id="btnSaveServer" title="Save config.yml + schedules.yml to the server and apply immediately (equivalent to /srestart reload)">Save to Server</button>
@@ -307,6 +308,7 @@
   <button data-tab="backup">Backup</button>
   <button data-tab="advanced">Advanced</button>
   <button data-tab="discord">Discord</button>
+  <button data-tab="messages">Messages</button>
 </nav>
 
 <!-- ========================================================
@@ -735,6 +737,24 @@
     </div>
   </div>
 
+  <!-- ======================================================
+       TAB: MESSAGES
+  ====================================================== -->
+  <div class="tab-panel" id="tab-messages">
+    <h2 style="font-size:1.05rem;margin-bottom:14px;">Messages</h2>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Player-Facing Text (messages.yml)</span></div>
+      <div class="card-body">
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">
+          All values support MiniMessage formatting (e.g. &lt;red&gt;, &lt;bold&gt;). This is a
+          separate file from config.yml, loaded and saved independently via its own
+          GET/POST /api/messages endpoint.
+        </div>
+        <div id="messagesList"></div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- ======================================================
@@ -847,8 +867,60 @@ var state = {
       manual_restart:    { enabled: true, message: 'Manual restart — {reason}. Initiated by: {initiator}' },
       server_online:     { enabled: true, message: 'Server has restarted successfully!' }
     }
+  },
+  // Flat {key: value} map mirroring messages.yml exactly — a separate file from config.yml,
+  // loaded/saved independently via GET/POST /api/messages. Defaults below match the bundled
+  // messages.yml so the tab renders sensibly even before the server round-trip completes.
+  messages: {
+    'prefix': '<dark_gray>[<aqua>Restart<dark_gray>]</dark_gray> ',
+    'status-no-pending': '<gray>No restart is currently scheduled.',
+    'status-pending': '<gray>Next restart: <white>{time}</white> <dark_gray>(<gray>source: <white>{source}</white><dark_gray>)',
+    'schedules-header': '<aqua><bold>Configured Schedules</bold></aqua>',
+    'schedules-entry': '  <white>{name}</white> <dark_gray>|</dark_gray> <gray>enabled: <white>{enabled}</white> <dark_gray>|</dark_gray> tz: <white>{timezone}</white> <dark_gray>|</dark_gray> days: <white>{days}</white> <dark_gray>|</dark_gray> times: <white>{times}</white> <dark_gray>|</dark_gray> next: <white>{next}</white>',
+    'schedules-none': '<gray>No schedules configured.',
+    'restart-initiated': '<green>Server restart initiated. <gray>Reason: <white>{reason}',
+    'restart-initiated-console': '<green>Server restart initiated by <white>{initiator}</white>. Reason: <white>{reason}',
+    'restart-in-initiated': '<green>Server will restart in <white>{time}</white>.',
+    'restart-in-bad-format': '<red>Invalid time format. Examples: <white>30m</white>, <white>1h</white>, <white>1h30m</white>, <white>45s</white>',
+    'restart-in-too-short': '<red>Time must be at least 10 seconds.',
+    'cancel-success': '<green>Scheduled restart has been cancelled.',
+    'cancel-no-pending': '<gray>There is no pending manual restart to cancel.',
+    'reload-success': '<green>Configuration reloaded successfully.',
+    'reload-failed': '<red>Reload failed: <white>{error}</white>. Previous configuration retained.',
+    'broadcast-cancelled': '<gold>⚠</gold> <yellow>The scheduled server restart has been <green>cancelled</green>.',
+    'broadcast-restart-in': '<gold>⚠</gold> <yellow>Server will restart in <white>{time}</white>!',
+    'no-permission': '<red>You do not have permission to use this command.',
+    'must-be-player': '<red>This command can only be run by a player.',
+    'unknown-subcommand': '<red>Unknown sub-command. Usage: <white>/restart <now|in|cancel|schedules|status|reload>',
+    'usage-restart-in': '<red>Usage: <white>/restart in <time> [reason]'
   }
 };
+
+// Field metadata for the Messages tab — one labeled input per messages.yml key.
+// Order matches the bundled messages.yml top-to-bottom.
+var MESSAGE_FIELDS = [
+  { key: 'prefix', label: 'Chat Prefix' },
+  { key: 'status-no-pending', label: '/restart status — No Restart Pending' },
+  { key: 'status-pending', label: '/restart status — Restart Pending', hint: 'Placeholders: {time}, {source}' },
+  { key: 'schedules-header', label: '/restart schedules — Header' },
+  { key: 'schedules-entry', label: '/restart schedules — Entry Format', hint: 'Placeholders: {name}, {enabled}, {timezone}, {days}, {times}, {next}' },
+  { key: 'schedules-none', label: '/restart schedules — None Configured' },
+  { key: 'restart-initiated', label: '/restart now — Initiated (Player)', hint: 'Placeholders: {reason}' },
+  { key: 'restart-initiated-console', label: '/restart now — Initiated (Console)', hint: 'Placeholders: {initiator}, {reason}' },
+  { key: 'restart-in-initiated', label: '/restart in — Initiated', hint: 'Placeholders: {time}' },
+  { key: 'restart-in-bad-format', label: '/restart in — Bad Time Format' },
+  { key: 'restart-in-too-short', label: '/restart in — Too Short' },
+  { key: 'cancel-success', label: '/restart cancel — Success' },
+  { key: 'cancel-no-pending', label: '/restart cancel — Nothing To Cancel' },
+  { key: 'reload-success', label: '/restart reload — Success' },
+  { key: 'reload-failed', label: '/restart reload — Failed', hint: 'Placeholders: {error}' },
+  { key: 'broadcast-cancelled', label: 'Broadcast — Restart Cancelled' },
+  { key: 'broadcast-restart-in', label: 'Broadcast — Restart Scheduled', hint: 'Placeholders: {time}' },
+  { key: 'no-permission', label: 'No Permission' },
+  { key: 'must-be-player', label: 'Must Be Player' },
+  { key: 'unknown-subcommand', label: 'Unknown Sub-command' },
+  { key: 'usage-restart-in', label: 'Usage — /restart in' }
+];
 
 var nextId = 1;
 function uid() { return nextId++; }
@@ -1007,6 +1079,7 @@ function collectFormValues() {
   collectSchedules();
   collectWarningIntervals();
   collectCommands();
+  collectMessages();
 }
 
 function collectSchedules() {
@@ -1427,6 +1500,28 @@ function renderDiscord() {
   document.getElementById('discordOnlineMessage').value   = n.server_online.message;
 }
 
+/* ---- Messages ---- */
+function messageInputId(key) { return 'msg-' + key; }
+
+function renderMessages() {
+  var list = document.getElementById('messagesList');
+  list.innerHTML = MESSAGE_FIELDS.map(function(f) {
+    var val = state.messages[f.key] != null ? state.messages[f.key] : '';
+    var hint = f.hint ? '<div style="font-size:.8rem;color:var(--muted);margin-top:4px;">' + escHtml(f.hint) + '</div>' : '';
+    return '<div class="field-row">' +
+      '<label>' + escHtml(f.label) + '</label>' +
+      '<div><input type="text" id="' + messageInputId(f.key) + '" value="' + escHtml(val) + '">' + hint + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function collectMessages() {
+  MESSAGE_FIELDS.forEach(function(f) {
+    var el = document.getElementById(messageInputId(f.key));
+    if (el) state.messages[f.key] = el.value;
+  });
+}
+
 // ============================================================
 //  YAML serializer (simple — handles strings, numbers, booleans,
 //  lists, and nested objects up to 3 levels deep)
@@ -1734,6 +1829,20 @@ function importConfig(parsed) {
   }
 }
 
+/**
+ * Applies the flat {key: value} JSON returned by GET /api/messages to state.messages.
+ * Unlike importConfig()/importSchedules() (which read a nested config.yml/schedules.yml
+ * shape), this is a direct flat merge — messages.yml has no sections.
+ */
+function importMessages(parsed) {
+  if (!parsed) return;
+  MESSAGE_FIELDS.forEach(function(f) {
+    if (typeof parsed[f.key] === 'string') {
+      state.messages[f.key] = parsed[f.key];
+    }
+  });
+}
+
 // ============================================================
 //  Export — generate YAML and download
 // ============================================================
@@ -1862,6 +1971,19 @@ function buildSchedulesYaml() {
   return '# SwagRestartScheduler - Schedules Configuration\n# Generated by Config Editor\n\n' + toYaml(out);
 }
 
+/**
+ * Builds the flat {key: value} form of messages.yml. Shared by the messages.yml YAML
+ * exporter and by saveToServer()'s POST /api/messages body.
+ */
+function buildMessagesObject() {
+  collectMessages();
+  return Object.assign({}, state.messages);
+}
+
+function buildMessagesYaml() {
+  return '# SwagRestartScheduler - Messages Configuration\n# Generated by Config Editor\n\n' + toYaml(buildMessagesObject());
+}
+
 function downloadFile(filename, content) {
   var blob = new Blob([content], {type: 'text/plain;charset=utf-8'});
   var url  = URL.createObjectURL(blob);
@@ -1891,20 +2013,31 @@ document.getElementById('btnExportSchedules').addEventListener('click', function
   }
 });
 
+document.getElementById('btnExportMessages').addEventListener('click', function() {
+  try {
+    downloadFile('messages.yml', buildMessagesYaml());
+    toast('messages.yml downloaded.', 'success');
+  } catch(e) {
+    toast('Export failed: ' + e.message, 'error');
+  }
+});
+
 document.getElementById('btnSaveLocal').addEventListener('click', saveToLocal);
 
 // ============================================================
-//  Server persistence — GET/POST /api/config, POST /api/schedules
+//  Server persistence — GET/POST /api/config, POST /api/schedules, GET/POST /api/messages
 // ============================================================
 
 /**
  * Saves the current form state to the live server: config.yml via POST /api/config,
- * then schedules.yml via POST /api/schedules. Both apply immediately server-side
- * (equivalent to running /srestart reload) — no plugin restart required.
+ * then schedules.yml via POST /api/schedules, then messages.yml via POST /api/messages.
+ * All three apply immediately server-side (equivalent to running /srestart reload) —
+ * no plugin restart required.
  */
 function saveToServer() {
   var cfgObj   = buildConfigObject();
   var schedObj = buildSchedulesObject();
+  var msgObj   = buildMessagesObject();
 
   apiFetch('/api/config', {
     method: 'POST',
@@ -1927,6 +2060,17 @@ function saveToServer() {
       return r.json();
     })
     .then(function() {
+      return apiFetch('/api/messages', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(msgObj)
+      });
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('messages.yml save failed (HTTP ' + r.status + ')');
+      return r.json();
+    })
+    .then(function() {
       toast('Saved to server and applied — no restart needed.', 'success');
     })
     .catch(function(e) {
@@ -1936,18 +2080,25 @@ function saveToServer() {
 }
 
 /**
- * Loads the server's live config.yml + schedules.yml via GET /api/config and replaces
- * the current in-page state with it, discarding any unsaved local changes.
+ * Loads the server's live config.yml + schedules.yml + messages.yml via GET /api/config
+ * and GET /api/messages, and replaces the current in-page state with it, discarding any
+ * unsaved local changes.
  */
 function loadFromServer() {
-  apiFetch('/api/config')
-    .then(function(r) {
+  Promise.all([
+    apiFetch('/api/config').then(function(r) {
       if (!r.ok) throw new Error('load failed (HTTP ' + r.status + ')');
       return r.json();
+    }),
+    apiFetch('/api/messages').then(function(r) {
+      if (!r.ok) throw new Error('messages load failed (HTTP ' + r.status + ')');
+      return r.json();
     })
-    .then(function(data) {
-      importConfig(data);
-      importSchedules(data);
+  ])
+    .then(function(results) {
+      importConfig(results[0]);
+      importSchedules(results[0]);
+      importMessages(results[1]);
       renderAll();
       toast('Loaded live config from server.', 'success');
     })
@@ -2054,6 +2205,7 @@ function renderAll() {
   renderEventBus();
   renderCrashLoop();
   renderDiscord();
+  renderMessages();
 }
 
 // ============================================================
@@ -2100,19 +2252,26 @@ function applyLocalOrDefaultsAndRender() {
   renderAll();
 }
 
-// On page load, prefer the server's live config.yml + schedules.yml (GET /api/config) so the
-// page reflects actual current state instead of requiring a manual file import first. Falls
-// back to browser storage, then hardcoded sensible defaults, if the request fails (e.g. the
-// data folder's web/ files predate this endpoint, or SwagAPI briefly unavailable).
+// On page load, prefer the server's live config.yml + schedules.yml + messages.yml
+// (GET /api/config, GET /api/messages) so the page reflects actual current state instead
+// of requiring a manual file import first. Falls back to browser storage, then hardcoded
+// sensible defaults, if either request fails (e.g. the data folder's web/ files predate
+// these endpoints, or SwagAPI briefly unavailable).
 (function init() {
-  apiFetch('/api/config')
-    .then(function(r) {
+  Promise.all([
+    apiFetch('/api/config').then(function(r) {
+      if (!r.ok) throw new Error('status ' + r.status);
+      return r.json();
+    }),
+    apiFetch('/api/messages').then(function(r) {
       if (!r.ok) throw new Error('status ' + r.status);
       return r.json();
     })
-    .then(function(data) {
-      importConfig(data);
-      importSchedules(data);
+  ])
+    .then(function(results) {
+      importConfig(results[0]);
+      importSchedules(results[0]);
+      importMessages(results[1]);
       renderAll();
     })
     .catch(function(e) {

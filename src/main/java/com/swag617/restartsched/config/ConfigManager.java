@@ -97,6 +97,21 @@ public class ConfigManager {
         }
     }
 
+    /**
+     * Reloads only {@code messages.yml}, retaining the previous config on parse error.
+     * Called by {@link com.swag617.restartsched.web.WebEditorHttpHandler} after a
+     * {@code POST /api/messages} save, mirroring {@link #reloadSchedules()}.
+     */
+    public void reloadMessages() {
+        FileConfiguration prev = messagesConfig;
+        try {
+            messagesConfig = loadYaml(messagesFile, "messages.yml");
+        } catch (Exception e) {
+            logger.warning("Failed to reload messages.yml: " + e.getMessage() + " — retaining previous config.");
+            messagesConfig = prev;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Accessors
     // -------------------------------------------------------------------------
@@ -258,5 +273,14 @@ public class ConfigManager {
      */
     public File getSchedulesFile() {
         return schedulesFile;
+    }
+
+    /**
+     * Returns the {@code File} handle for {@code messages.yml}.
+     * Used by {@link com.swag617.restartsched.web.WebEditorHttpHandler} to persist
+     * web-editor message changes back to disk.
+     */
+    public File getMessagesFile() {
+        return messagesFile;
     }
 }

@@ -41,6 +41,10 @@ import java.util.logging.Level;
  *   <li>{@code POST /api/schedules} — applies a JSON body of the form
  *       {@code {"schedules": {"name": {...}, ...}}} to schedules.yml, wholesale-replacing the
  *       {@code schedules} section</li>
+ *   <li>{@code GET /api/messages} — returns messages.yml's top-level keys as a flat JSON
+ *       object of {@code {key: value}} string pairs (messages.yml has no nested sections)</li>
+ *   <li>{@code POST /api/messages} — applies a flat JSON body of {@code {key: value}} string
+ *       pairs to messages.yml, setting only the submitted keys</li>
  * </ul>
  *
  * <h3>Thread safety</h3>
@@ -92,6 +96,17 @@ public class WebEditorHttpHandler implements HttpHandler {
             if (path.equals("/api/schedules")) {
                 if ("POST".equals(method)) {
                     handlePostSchedules(exchange);
+                } else {
+                    sendPlain(exchange, 405, "Method Not Allowed");
+                }
+                return;
+            }
+
+            if (path.equals("/api/messages")) {
+                if ("GET".equals(method)) {
+                    handleGetMessages(exchange);
+                } else if ("POST".equals(method)) {
+                    handlePostMessages(exchange);
                 } else {
                     sendPlain(exchange, 405, "Method Not Allowed");
                 }
@@ -572,6 +587,108 @@ public class WebEditorHttpHandler implements HttpHandler {
 
         plugin.getConfigManager().saveConfig(schedulesCfg, plugin.getConfigManager().getSchedulesFile());
         plugin.getScheduleManager().reload();
+    }
+
+    // -------------------------------------------------------------------------
+    // GET / POST /api/messages
+    // -------------------------------------------------------------------------
+
+    private void handleGetMessages(HttpExchange exchange) throws IOException {
+        CompletableFuture<Map<String, Object>> future = new CompletableFuture<>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            try {
+                future.complete(buildMessagesJson());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        future.whenComplete((data, err) -> {
+            try {
+                if (err != null) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to build web editor messages JSON", err);
+                    sendJson(exchange, 500, "{\"error\":\"Failed to read current messages\"}");
+                } else {
+                    sendJson(exchange, 200, gson.toJson(data));
+                }
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to write web editor GET /api/messages response", e);
+            }
+        });
+    }
+
+    /**
+     * Reads {@code messages.yml}'s top-level keys into a flat {@code {key: value}} map.
+     * messages.yml has no nested sections, so a single-level {@code getKeys(false)} pass
+     * captures every message string. Must be called on the main thread.
+     */
+    private Map<String, Object> buildMessagesJson() {
+        Map<String, Object> root = new LinkedHashMap<>();
+        FileConfiguration messagesCfg = plugin.getConfigManager().getMessagesConfig();
+        if (messagesCfg != null) {
+            for (String key : messagesCfg.getKeys(false)) {
+                root.put(key, messagesCfg.getString(key, ""));
+            }
+        }
+        return root;
+    }
+
+    private void handlePostMessages(HttpExchange exchange) throws IOException {
+        Map<?, ?> body;
+        try {
+            body = readJsonBody(exchange);
+        } catch (JsonSyntaxException e) {
+            sendJson(exchange, 400, "{\"error\":\"Malformed JSON body\"}");
+            return;
+        }
+        if (body == null) {
+            sendJson(exchange, 400, "{\"error\":\"Empty request body\"}");
+            return;
+        }
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            try {
+                applyMessagesJson(body);
+                future.complete(null);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        future.whenComplete((ignored, err) -> {
+            try {
+                if (err != null) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to apply web editor messages POST", err);
+                    sendJson(exchange, 500, "{\"error\":\"Failed to save messages.yml\"}");
+                } else {
+                    sendJson(exchange, 200, "{\"ok\":true}");
+                }
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to write web editor POST /api/messages response", e);
+            }
+        });
+    }
+
+    /**
+     * Applies a flat {@code {key: value}} JSON body directly onto the live loaded
+     * {@code messages.yml} config object via granular {@code .set()} calls per submitted
+     * key — mirroring {@link #applyConfigJson(Map)}'s safe-write pattern rather than
+     * rebuilding the file from a blank {@code YamlConfiguration}. Must be called on the
+     * main thread.
+     */
+    private void applyMessagesJson(Map<?, ?> body) {
+        FileConfiguration messagesCfg = plugin.getConfigManager().getMessagesConfig();
+        if (messagesCfg == null) return;
+
+        for (Map.Entry<?, ?> entry : body.entrySet()) {
+            if (!(entry.getKey() instanceof String key) || key.isBlank()) continue;
+            if (!(entry.getValue() instanceof String value)) continue;
+            messagesCfg.set(key, value);
+        }
+
+        plugin.getConfigManager().saveConfig(messagesCfg, plugin.getConfigManager().getMessagesFile());
+        plugin.getConfigManager().reloadMessages();
     }
 
     // -------------------------------------------------------------------------
