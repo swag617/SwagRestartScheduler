@@ -193,6 +193,16 @@ public class WebEditorHttpHandler implements HttpHandler {
         warnings.put("intervals", intervals);
         root.put("warnings", warnings);
 
+        // ---- boss_bar ----
+        Map<String, Object> bossBar = new LinkedHashMap<>();
+        bossBar.put("enabled", cfg.getBoolean("boss_bar.enabled", true));
+        bossBar.put("seconds-threshold", cfg.getInt("boss_bar.seconds-threshold", 10));
+        bossBar.put("color", cfg.getString("boss_bar.color", "RED"));
+        bossBar.put("overlay", cfg.getString("boss_bar.overlay", "PROGRESS"));
+        bossBar.put("title-format", cfg.getString("boss_bar.title-format",
+                "<red><bold>{reason} — restarting in {seconds}s"));
+        root.put("boss_bar", bossBar);
+
         // ---- grace_period ----
         Map<String, Object> grace = new LinkedHashMap<>();
         grace.put("enabled", cfg.getBoolean("grace_period.enabled", false));
@@ -203,6 +213,7 @@ public class WebEditorHttpHandler implements HttpHandler {
         Map<String, Object> conditions = new LinkedHashMap<>();
         conditions.put("combat", cfg.getBoolean("grace_period.conditions.combat", true));
         conditions.put("worlds", cfg.getStringList("grace_period.conditions.worlds"));
+        conditions.put("min-players-online", cfg.getInt("grace_period.conditions.min-players-online", 0));
         grace.put("conditions", conditions);
         root.put("grace_period", grace);
 
@@ -240,9 +251,28 @@ public class WebEditorHttpHandler implements HttpHandler {
         backup.put("maintenance_mode", cfg.getBoolean("backup.maintenance_mode", true));
         root.put("backup", backup);
 
+        // ---- event_bus ----
+        Map<String, Object> eventBus = new LinkedHashMap<>();
+        eventBus.put("enabled", cfg.getBoolean("event_bus.enabled", true));
+        eventBus.put("default-eta-seconds", cfg.getInt("event_bus.default-eta-seconds", 3));
+        eventBus.put("backup-eta-seconds", cfg.getInt("event_bus.backup-eta-seconds", 15));
+        root.put("event_bus", eventBus);
+
+        // ---- crash-loop-safe-mode ----
+        Map<String, Object> crashLoop = new LinkedHashMap<>();
+        crashLoop.put("enabled", cfg.getBoolean("crash-loop-safe-mode.enabled", true));
+        crashLoop.put("unclean-shutdown-threshold", cfg.getInt("crash-loop-safe-mode.unclean-shutdown-threshold", 2));
+        crashLoop.put("detection-window-minutes", cfg.getInt("crash-loop-safe-mode.detection-window-minutes", 15));
+        crashLoop.put("safe-mode-cooldown-minutes", cfg.getInt("crash-loop-safe-mode.safe-mode-cooldown-minutes", 30));
+        crashLoop.put("discord-message", cfg.getString("crash-loop-safe-mode.discord-message",
+                "⚠ CRASH LOOP DETECTED: {crash_count} unclean shutdown(s) within {window}m. "
+                        + "Scheduled/performance-triggered restarts suppressed for {cooldown}m."));
+        root.put("crash-loop-safe-mode", crashLoop);
+
         // ---- discord ----
         Map<String, Object> discord = new LinkedHashMap<>();
         discord.put("enabled", cfg.getBoolean("discord.enabled", true));
+        discord.put("webhook-name", cfg.getString("discord.webhook-name", "restart"));
         Map<String, Object> notifications = new LinkedHashMap<>();
         for (String type : new String[] {"scheduled_restart", "manual_restart", "server_online"}) {
             Map<String, Object> n = new LinkedHashMap<>();
@@ -350,6 +380,16 @@ public class WebEditorHttpHandler implements HttpHandler {
             cfg.set("warnings.intervals", intervals);
         }
 
+        Map<String, Object> bossBar = asMap(body.get("boss_bar"));
+        if (bossBar != null) {
+            cfg.set("boss_bar.enabled", asBoolean(bossBar.get("enabled"), true));
+            cfg.set("boss_bar.seconds-threshold", asInt(bossBar.get("seconds-threshold"), 10));
+            cfg.set("boss_bar.color", asString(bossBar.get("color"), "RED"));
+            cfg.set("boss_bar.overlay", asString(bossBar.get("overlay"), "PROGRESS"));
+            cfg.set("boss_bar.title-format", asString(bossBar.get("title-format"),
+                    "<red><bold>{reason} — restarting in {seconds}s"));
+        }
+
         Map<String, Object> grace = asMap(body.get("grace_period"));
         if (grace != null) {
             cfg.set("grace_period.enabled", asBoolean(grace.get("enabled"), false));
@@ -361,6 +401,8 @@ public class WebEditorHttpHandler implements HttpHandler {
             if (conditions != null) {
                 cfg.set("grace_period.conditions.combat", asBoolean(conditions.get("combat"), true));
                 cfg.set("grace_period.conditions.worlds", asStringList(conditions.get("worlds")));
+                cfg.set("grace_period.conditions.min-players-online",
+                        asInt(conditions.get("min-players-online"), 0));
             }
         }
 
@@ -402,9 +444,31 @@ public class WebEditorHttpHandler implements HttpHandler {
             cfg.set("backup.maintenance_mode", asBoolean(backup.get("maintenance_mode"), true));
         }
 
+        Map<String, Object> eventBus = asMap(body.get("event_bus"));
+        if (eventBus != null) {
+            cfg.set("event_bus.enabled", asBoolean(eventBus.get("enabled"), true));
+            cfg.set("event_bus.default-eta-seconds", asInt(eventBus.get("default-eta-seconds"), 3));
+            cfg.set("event_bus.backup-eta-seconds", asInt(eventBus.get("backup-eta-seconds"), 15));
+        }
+
+        Map<String, Object> crashLoop = asMap(body.get("crash-loop-safe-mode"));
+        if (crashLoop != null) {
+            cfg.set("crash-loop-safe-mode.enabled", asBoolean(crashLoop.get("enabled"), true));
+            cfg.set("crash-loop-safe-mode.unclean-shutdown-threshold",
+                    asInt(crashLoop.get("unclean-shutdown-threshold"), 2));
+            cfg.set("crash-loop-safe-mode.detection-window-minutes",
+                    asInt(crashLoop.get("detection-window-minutes"), 15));
+            cfg.set("crash-loop-safe-mode.safe-mode-cooldown-minutes",
+                    asInt(crashLoop.get("safe-mode-cooldown-minutes"), 30));
+            cfg.set("crash-loop-safe-mode.discord-message", asString(crashLoop.get("discord-message"),
+                    "⚠ CRASH LOOP DETECTED: {crash_count} unclean shutdown(s) within {window}m. "
+                            + "Scheduled/performance-triggered restarts suppressed for {cooldown}m."));
+        }
+
         Map<String, Object> discord = asMap(body.get("discord"));
         if (discord != null) {
             cfg.set("discord.enabled", asBoolean(discord.get("enabled"), true));
+            cfg.set("discord.webhook-name", asString(discord.get("webhook-name"), "restart"));
             Map<String, Object> notifications = asMap(discord.get("notifications"));
             if (notifications != null) {
                 for (String type : new String[] {"scheduled_restart", "manual_restart", "server_online"}) {
@@ -427,6 +491,9 @@ public class WebEditorHttpHandler implements HttpHandler {
         }
         if (plugin.getBackupManager() != null) {
             plugin.getBackupManager().reload();
+        }
+        if (plugin.getCrashLoopGuard() != null) {
+            plugin.getCrashLoopGuard().reload();
         }
     }
 

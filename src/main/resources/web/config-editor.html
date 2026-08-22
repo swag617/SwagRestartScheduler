@@ -305,6 +305,8 @@
   <button data-tab="performance">Performance Triggers</button>
   <button data-tab="prerestart">Pre-Restart Commands</button>
   <button data-tab="backup">Backup</button>
+  <button data-tab="advanced">Advanced</button>
+  <button data-tab="discord">Discord</button>
 </nav>
 
 <!-- ========================================================
@@ -350,6 +352,57 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-header"><span class="card-title">Boss Bar (Final Countdown)</span></div>
+      <div class="card-body">
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">
+          Shows a boss bar only in the very last moments before restart. The seconds threshold
+          is hard-capped at 10 in code no matter what is set here, so it can never become a
+          long/naggy countdown.
+        </div>
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="bossBarEnabled">
+        </div>
+        <div class="field-row">
+          <label>Seconds Threshold</label>
+          <div>
+            <input type="number" id="bossBarSecondsThreshold" min="0" max="10" style="width:120px;">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Hard-capped at 10 seconds</div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Color</label>
+          <select id="bossBarColor">
+            <option value="PINK">PINK</option>
+            <option value="BLUE">BLUE</option>
+            <option value="RED">RED</option>
+            <option value="GREEN">GREEN</option>
+            <option value="YELLOW">YELLOW</option>
+            <option value="PURPLE">PURPLE</option>
+            <option value="WHITE">WHITE</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label>Overlay</label>
+          <select id="bossBarOverlay">
+            <option value="PROGRESS">PROGRESS</option>
+            <option value="NOTCHED_6">NOTCHED_6</option>
+            <option value="NOTCHED_10">NOTCHED_10</option>
+            <option value="NOTCHED_12">NOTCHED_12</option>
+            <option value="NOTCHED_20">NOTCHED_20</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label>Title Format</label>
+          <div>
+            <input type="text" id="bossBarTitleFormat">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Use {reason} and {seconds} as placeholders</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="warningsList"></div>
   </div>
 
@@ -385,6 +438,14 @@
           <div class="inline-flex">
             <input type="checkbox" id="graceCombat">
             <span style="font-size:.82rem;color:var(--muted);">Requires CombatLogX</span>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label>Min Players Online</label>
+          <div>
+            <input type="number" id="graceMinPlayersOnline" min="0" style="width:120px;">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Delay while at least this many players are online (0 disables this condition)</div>
           </div>
         </div>
 
@@ -523,6 +584,157 @@
     </div>
   </div>
 
+  <!-- ======================================================
+       TAB: ADVANCED
+  ====================================================== -->
+  <div class="tab-panel" id="tab-advanced">
+    <h2 style="font-size:1.05rem;margin-bottom:14px;">Advanced</h2>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Event Bus</span></div>
+      <div class="card-body">
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">
+          Broadcasts a "server.restart.pending" event via SwagAPI's shared event bus (soft
+          dependency) at the confirmed point of no return, so other plugins can react before the
+          server actually goes down. No-op if SwagAPI or its event bus isn't installed.
+        </div>
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="eventBusEnabled">
+        </div>
+        <div class="field-row">
+          <label>Default ETA (seconds)</label>
+          <div>
+            <input type="number" id="eventBusDefaultEta" min="0" style="width:120px;">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Fallback ETA used when no pre-restart backup will run</div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Backup ETA (seconds)</label>
+          <div>
+            <input type="number" id="eventBusBackupEta" min="0" style="width:120px;">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Added to the ETA when a pre-restart backup will run (Backup tab enabled)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Crash-Loop Safe Mode</span></div>
+      <div class="card-body">
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">
+          Detects the JVM dying without a clean shutdown (crash, kill, host reboot). If enough
+          unclean shutdowns happen close together, scheduled and performance-triggered restarts
+          are suppressed for a cooldown period. Manual restarts (/srestart now, /srestart in) are
+          never suppressed.
+        </div>
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="crashLoopEnabled">
+        </div>
+        <div class="field-row">
+          <label>Unclean Shutdown Threshold</label>
+          <div>
+            <input type="number" id="crashLoopThreshold" min="1" style="width:120px;">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Unclean shutdowns within the detection window that trigger safe mode</div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Detection Window (minutes)</label>
+          <input type="number" id="crashLoopWindow" min="1" style="width:120px;">
+        </div>
+        <div class="field-row">
+          <label>Safe Mode Cooldown (minutes)</label>
+          <input type="number" id="crashLoopCooldown" min="1" style="width:120px;">
+        </div>
+        <div class="field-row" style="align-items:flex-start">
+          <label style="padding-top:6px;">Discord Alert Message</label>
+          <div>
+            <textarea id="crashLoopDiscordMessage"></textarea>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Placeholders: {crash_count}, {window}, {cooldown}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       TAB: DISCORD
+  ====================================================== -->
+  <div class="tab-panel" id="tab-discord">
+    <h2 style="font-size:1.05rem;margin-bottom:14px;">Discord Notifications</h2>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">General</span></div>
+      <div class="card-body">
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">
+          Published on SwagAPI's event bus (discordutils:notify channel). Requires DiscordUtils to
+          be installed with a matching "webhooks.&lt;webhook-name&gt;" entry configured in its own
+          config.yml — no compile-time or reflection dependency on DiscordUtils from this plugin.
+        </div>
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="discordEnabled">
+        </div>
+        <div class="field-row">
+          <label>Webhook Name</label>
+          <div>
+            <input type="text" id="discordWebhookName" style="width:220px;">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Named webhook (from DiscordUtils' "webhooks:" section) these notifications route to</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Scheduled Restart</span></div>
+      <div class="card-body">
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="discordSchedEnabled">
+        </div>
+        <div class="field-row">
+          <label>Message</label>
+          <div>
+            <input type="text" id="discordSchedMessage">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Placeholders: {time}, {player_count}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Manual Restart</span></div>
+      <div class="card-body">
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="discordManualEnabled">
+        </div>
+        <div class="field-row">
+          <label>Message</label>
+          <div>
+            <input type="text" id="discordManualMessage">
+            <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">Placeholders: {reason}, {initiator}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Server Online</span></div>
+      <div class="card-body">
+        <div class="field-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="discordOnlineEnabled">
+        </div>
+        <div class="field-row">
+          <label>Message</label>
+          <input type="text" id="discordOnlineMessage">
+        </div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- ======================================================
@@ -577,7 +789,14 @@ var state = {
     enabled: true,
     actionBarThreshold: 60,
     actionBarFormat: '<red><bold>Restarting in {seconds}s',
-    intervals: []         // [{id, seconds, message, title, subtitle, sound}]
+    intervals: [],        // [{id, seconds, message, title, subtitle, sound}]
+    bossBar: {
+      enabled: true,
+      secondsThreshold: 10,
+      color: 'RED',
+      overlay: 'PROGRESS',
+      titleFormat: '<red><bold>{reason} — restarting in {seconds}s'
+    }
   },
   grace: {
     enabled: false,
@@ -585,6 +804,7 @@ var state = {
     checkIntervalSeconds: 5,
     message: '<yellow>Restart delayed - players in protected area',
     combat: true,
+    minPlayersOnline: 0,
     worlds: []
   },
   performance: {
@@ -606,6 +826,27 @@ var state = {
     maxBackups: 5,
     include: ['world', 'world_nether', 'world_the_end'],
     destination: 'plugins/SwagRestartScheduler/backups'
+  },
+  eventBus: {
+    enabled: true,
+    defaultEtaSeconds: 3,
+    backupEtaSeconds: 15
+  },
+  crashLoop: {
+    enabled: true,
+    uncleanShutdownThreshold: 2,
+    detectionWindowMinutes: 15,
+    safeModeCooldownMinutes: 30,
+    discordMessage: '⚠ CRASH LOOP DETECTED: {crash_count} unclean shutdown(s) within {window}m. Scheduled/performance-triggered restarts suppressed for {cooldown}m.'
+  },
+  discord: {
+    enabled: true,
+    webhookName: 'restart',
+    notifications: {
+      scheduled_restart: { enabled: true, message: 'Server restarting in {time}. Players online: {player_count}' },
+      manual_restart:    { enabled: true, message: 'Manual restart — {reason}. Initiated by: {initiator}' },
+      server_online:     { enabled: true, message: 'Server has restarted successfully!' }
+    }
   }
 };
 
@@ -674,6 +915,15 @@ function loadFromLocal() {
     state.performance = Object.assign({}, state.performance, parsed.performance || {});
     state.prerestart  = Object.assign({}, state.prerestart,  parsed.prerestart  || {});
     state.backup      = Object.assign({}, state.backup,      parsed.backup      || {});
+    state.eventBus    = Object.assign({}, state.eventBus,    parsed.eventBus    || {});
+    state.crashLoop   = Object.assign({}, state.crashLoop,   parsed.crashLoop   || {});
+    state.discord     = Object.assign({}, state.discord,     parsed.discord     || {});
+    if (parsed.discord && parsed.discord.notifications) {
+      state.discord.notifications = Object.assign({}, state.discord.notifications, parsed.discord.notifications);
+    }
+    if (parsed.warnings && parsed.warnings.bossBar) {
+      state.warnings.bossBar = Object.assign({}, state.warnings.bossBar, parsed.warnings.bossBar);
+    }
     // Make sure intervals and commands arrays exist
     if (!state.warnings.intervals) state.warnings.intervals = [];
     if (!state.prerestart.commands) state.prerestart.commands = [];
@@ -696,12 +946,20 @@ function collectFormValues() {
   state.warnings.actionBarThreshold  = parseInt(document.getElementById('warnActionBarThreshold').value, 10) || 60;
   state.warnings.actionBarFormat     = document.getElementById('warnActionBarFormat').value;
 
+  // Boss bar
+  state.warnings.bossBar.enabled           = document.getElementById('bossBarEnabled').checked;
+  state.warnings.bossBar.secondsThreshold  = parseInt(document.getElementById('bossBarSecondsThreshold').value, 10) || 0;
+  state.warnings.bossBar.color             = document.getElementById('bossBarColor').value;
+  state.warnings.bossBar.overlay           = document.getElementById('bossBarOverlay').value;
+  state.warnings.bossBar.titleFormat       = document.getElementById('bossBarTitleFormat').value;
+
   // Grace period
   state.grace.enabled               = document.getElementById('graceEnabled').checked;
   state.grace.maxDelayMinutes       = parseInt(document.getElementById('graceMaxDelay').value, 10) || 15;
   state.grace.checkIntervalSeconds  = parseInt(document.getElementById('graceCheckInterval').value, 10) || 5;
   state.grace.message               = document.getElementById('graceMessage').value;
   state.grace.combat                = document.getElementById('graceCombat').checked;
+  state.grace.minPlayersOnline      = parseInt(document.getElementById('graceMinPlayersOnline').value, 10) || 0;
 
   // Performance
   state.performance.enabled           = document.getElementById('perfEnabled').checked;
@@ -721,6 +979,28 @@ function collectFormValues() {
   state.backup.maxBackups      = parseInt(document.getElementById('backupMaxBackups').value, 10) || 0;
   state.backup.destination     = document.getElementById('backupDestination').value;
   // backup.include is managed in real-time via add/remove buttons
+
+  // Event bus
+  state.eventBus.enabled            = document.getElementById('eventBusEnabled').checked;
+  state.eventBus.defaultEtaSeconds  = parseInt(document.getElementById('eventBusDefaultEta').value, 10) || 0;
+  state.eventBus.backupEtaSeconds   = parseInt(document.getElementById('eventBusBackupEta').value, 10) || 0;
+
+  // Crash-loop safe mode
+  state.crashLoop.enabled                  = document.getElementById('crashLoopEnabled').checked;
+  state.crashLoop.uncleanShutdownThreshold = parseInt(document.getElementById('crashLoopThreshold').value, 10) || 1;
+  state.crashLoop.detectionWindowMinutes   = parseInt(document.getElementById('crashLoopWindow').value, 10) || 15;
+  state.crashLoop.safeModeCooldownMinutes  = parseInt(document.getElementById('crashLoopCooldown').value, 10) || 30;
+  state.crashLoop.discordMessage           = document.getElementById('crashLoopDiscordMessage').value;
+
+  // Discord
+  state.discord.enabled     = document.getElementById('discordEnabled').checked;
+  state.discord.webhookName = document.getElementById('discordWebhookName').value;
+  state.discord.notifications.scheduled_restart.enabled = document.getElementById('discordSchedEnabled').checked;
+  state.discord.notifications.scheduled_restart.message = document.getElementById('discordSchedMessage').value;
+  state.discord.notifications.manual_restart.enabled    = document.getElementById('discordManualEnabled').checked;
+  state.discord.notifications.manual_restart.message    = document.getElementById('discordManualMessage').value;
+  state.discord.notifications.server_online.enabled     = document.getElementById('discordOnlineEnabled').checked;
+  state.discord.notifications.server_online.message     = document.getElementById('discordOnlineMessage').value;
 
   // Per-item fields (schedules, warnings intervals, commands) are collected in real-time
   // via their own input event handlers, but we do a final pass here just in case.
@@ -936,6 +1216,12 @@ function renderWarnings() {
   document.getElementById('warnActionBarThreshold').value = state.warnings.actionBarThreshold;
   document.getElementById('warnActionBarFormat').value    = state.warnings.actionBarFormat;
 
+  document.getElementById('bossBarEnabled').checked          = !!state.warnings.bossBar.enabled;
+  document.getElementById('bossBarSecondsThreshold').value   = state.warnings.bossBar.secondsThreshold;
+  document.getElementById('bossBarColor').value               = state.warnings.bossBar.color;
+  document.getElementById('bossBarOverlay').value             = state.warnings.bossBar.overlay;
+  document.getElementById('bossBarTitleFormat').value         = state.warnings.bossBar.titleFormat;
+
   var container = document.getElementById('warningsList');
   container.innerHTML = '';
   state.warnings.intervals.forEach(function(w) {
@@ -996,6 +1282,7 @@ function renderGrace() {
   document.getElementById('graceCheckInterval').value    = state.grace.checkIntervalSeconds;
   document.getElementById('graceMessage').value          = state.grace.message;
   document.getElementById('graceCombat').checked         = !!state.grace.combat;
+  document.getElementById('graceMinPlayersOnline').value = state.grace.minPlayersOnline;
 
   var container = document.getElementById('graceWorldsList');
   container.innerHTML = '';
@@ -1108,6 +1395,36 @@ function renderBackup() {
     state.backup.include = state.backup.include.filter(function(x) { return x !== entry; });
     renderBackup();
   };
+}
+
+/* ---- Event Bus ---- */
+function renderEventBus() {
+  document.getElementById('eventBusEnabled').checked      = !!state.eventBus.enabled;
+  document.getElementById('eventBusDefaultEta').value     = state.eventBus.defaultEtaSeconds;
+  document.getElementById('eventBusBackupEta').value      = state.eventBus.backupEtaSeconds;
+}
+
+/* ---- Crash-Loop Safe Mode ---- */
+function renderCrashLoop() {
+  document.getElementById('crashLoopEnabled').checked        = !!state.crashLoop.enabled;
+  document.getElementById('crashLoopThreshold').value        = state.crashLoop.uncleanShutdownThreshold;
+  document.getElementById('crashLoopWindow').value           = state.crashLoop.detectionWindowMinutes;
+  document.getElementById('crashLoopCooldown').value         = state.crashLoop.safeModeCooldownMinutes;
+  document.getElementById('crashLoopDiscordMessage').value   = state.crashLoop.discordMessage;
+}
+
+/* ---- Discord ---- */
+function renderDiscord() {
+  document.getElementById('discordEnabled').checked      = !!state.discord.enabled;
+  document.getElementById('discordWebhookName').value    = state.discord.webhookName;
+
+  var n = state.discord.notifications;
+  document.getElementById('discordSchedEnabled').checked  = !!n.scheduled_restart.enabled;
+  document.getElementById('discordSchedMessage').value    = n.scheduled_restart.message;
+  document.getElementById('discordManualEnabled').checked = !!n.manual_restart.enabled;
+  document.getElementById('discordManualMessage').value   = n.manual_restart.message;
+  document.getElementById('discordOnlineEnabled').checked = !!n.server_online.enabled;
+  document.getElementById('discordOnlineMessage').value   = n.server_online.message;
 }
 
 // ============================================================
@@ -1323,6 +1640,16 @@ function importConfig(parsed) {
     }
   }
 
+  // Boss bar
+  if (parsed.boss_bar) {
+    var bb = parsed.boss_bar;
+    state.warnings.bossBar.enabled          = bb.enabled !== false;
+    state.warnings.bossBar.secondsThreshold = typeof bb['seconds-threshold'] === 'number' ? bb['seconds-threshold'] : 10;
+    state.warnings.bossBar.color            = bb.color || 'RED';
+    state.warnings.bossBar.overlay          = bb.overlay || 'PROGRESS';
+    state.warnings.bossBar.titleFormat      = bb['title-format'] || state.warnings.bossBar.titleFormat;
+  }
+
   // Grace period
   if (parsed.grace_period) {
     var g = parsed.grace_period;
@@ -1331,8 +1658,41 @@ function importConfig(parsed) {
     state.grace.checkIntervalSeconds = g.check_interval_seconds || 5;
     state.grace.message              = g.message || '';
     var cond = g.conditions || {};
-    state.grace.combat  = cond.combat !== false;
-    state.grace.worlds  = Array.isArray(cond.worlds) ? cond.worlds.map(String) : [];
+    state.grace.combat            = cond.combat !== false;
+    state.grace.worlds            = Array.isArray(cond.worlds) ? cond.worlds.map(String) : [];
+    state.grace.minPlayersOnline  = typeof cond['min-players-online'] === 'number' ? cond['min-players-online'] : 0;
+  }
+
+  // Event bus
+  if (parsed.event_bus) {
+    var eb = parsed.event_bus;
+    state.eventBus.enabled           = eb.enabled !== false;
+    state.eventBus.defaultEtaSeconds = typeof eb['default-eta-seconds'] === 'number' ? eb['default-eta-seconds'] : 3;
+    state.eventBus.backupEtaSeconds  = typeof eb['backup-eta-seconds'] === 'number' ? eb['backup-eta-seconds'] : 15;
+  }
+
+  // Crash-loop safe mode
+  if (parsed['crash-loop-safe-mode']) {
+    var cl = parsed['crash-loop-safe-mode'];
+    state.crashLoop.enabled                  = cl.enabled !== false;
+    state.crashLoop.uncleanShutdownThreshold = typeof cl['unclean-shutdown-threshold'] === 'number' ? cl['unclean-shutdown-threshold'] : 2;
+    state.crashLoop.detectionWindowMinutes   = typeof cl['detection-window-minutes'] === 'number' ? cl['detection-window-minutes'] : 15;
+    state.crashLoop.safeModeCooldownMinutes  = typeof cl['safe-mode-cooldown-minutes'] === 'number' ? cl['safe-mode-cooldown-minutes'] : 30;
+    state.crashLoop.discordMessage           = cl['discord-message'] || state.crashLoop.discordMessage;
+  }
+
+  // Discord
+  if (parsed.discord) {
+    var d = parsed.discord;
+    state.discord.enabled     = d.enabled !== false;
+    state.discord.webhookName = d['webhook-name'] || 'restart';
+    var notif = d.notifications || {};
+    ['scheduled_restart', 'manual_restart', 'server_online'].forEach(function(type) {
+      if (notif[type]) {
+        state.discord.notifications[type].enabled = notif[type].enabled !== false;
+        state.discord.notifications[type].message = notif[type].message || state.discord.notifications[type].message;
+      }
+    });
   }
 
   // Performance triggers
@@ -1379,12 +1739,6 @@ function importConfig(parsed) {
 // ============================================================
 // Builds the plain-object form of config.yml's editable sections. Shared by the YAML
 // exporter below and by saveToServer()'s POST /api/config body.
-//
-// NOTE: "discord" is intentionally NOT included here. This editor has no Discord tab /
-// state field for it (webhook routing, per-notification messages), so POSTing a hardcoded
-// discord block to /api/config on every save would silently clobber the admin's real
-// Discord settings with defaults. The server-side handler leaves config.yml's "discord"
-// section untouched when the field is absent from the request body.
 function buildConfigObject() {
   collectFormValues();
   return {
@@ -1400,12 +1754,20 @@ function buildConfigObject() {
       'action-bar-threshold': state.warnings.actionBarThreshold,
       'action-bar-format':    state.warnings.actionBarFormat
     },
+    boss_bar: {
+      enabled: state.warnings.bossBar.enabled,
+      'seconds-threshold': state.warnings.bossBar.secondsThreshold,
+      color: state.warnings.bossBar.color,
+      overlay: state.warnings.bossBar.overlay,
+      'title-format': state.warnings.bossBar.titleFormat
+    },
     grace_period: {
       enabled: state.grace.enabled,
       max_delay_minutes: state.grace.maxDelayMinutes,
       conditions: {
         combat: state.grace.combat,
-        worlds: state.grace.worlds
+        worlds: state.grace.worlds,
+        'min-players-online': state.grace.minPlayersOnline
       },
       check_interval_seconds: state.grace.checkIntervalSeconds,
       message: state.grace.message
@@ -1431,6 +1793,36 @@ function buildConfigObject() {
       max_backups:      state.backup.maxBackups,
       compress:         state.backup.compress,
       maintenance_mode: state.backup.maintenanceMode
+    },
+    event_bus: {
+      enabled: state.eventBus.enabled,
+      'default-eta-seconds': state.eventBus.defaultEtaSeconds,
+      'backup-eta-seconds':  state.eventBus.backupEtaSeconds
+    },
+    'crash-loop-safe-mode': {
+      enabled: state.crashLoop.enabled,
+      'unclean-shutdown-threshold': state.crashLoop.uncleanShutdownThreshold,
+      'detection-window-minutes':   state.crashLoop.detectionWindowMinutes,
+      'safe-mode-cooldown-minutes': state.crashLoop.safeModeCooldownMinutes,
+      'discord-message': state.crashLoop.discordMessage
+    },
+    discord: {
+      enabled: state.discord.enabled,
+      'webhook-name': state.discord.webhookName,
+      notifications: {
+        scheduled_restart: {
+          enabled: state.discord.notifications.scheduled_restart.enabled,
+          message: state.discord.notifications.scheduled_restart.message
+        },
+        manual_restart: {
+          enabled: state.discord.notifications.manual_restart.enabled,
+          message: state.discord.notifications.manual_restart.message
+        },
+        server_online: {
+          enabled: state.discord.notifications.server_online.enabled,
+          message: state.discord.notifications.server_online.message
+        }
+      }
     }
   };
 }
@@ -1454,21 +1846,13 @@ function buildSchedulesObject() {
 
 function buildConfigYaml() {
   var cfg = buildConfigObject();
-  // These two sections have no editor UI (general is fixed/advanced-only, discord has no
-  // tab) — only present in the downloadable YAML as a reference starting point, never sent
-  // to the live server via Save to Server.
+  // "general" has no editor UI (documented as fixed/reference-only, not meant to be live-edited)
+  // — only present in the downloadable YAML as a reference starting point, never sent to the
+  // live server via Save to Server.
   cfg.general = {
     'use-spigot-restart': true,
     'log-prefix': '[SwagRestartScheduler]',
     'check-interval-seconds': 10
-  };
-  cfg.discord = {
-    enabled: true,
-    notifications: {
-      scheduled_restart: { enabled: true, message: 'Server restarting in {time}. Players online: {player_count}' },
-      manual_restart:    { enabled: true, message: 'Manual restart — {reason}. Initiated by: {initiator}' },
-      server_online:     { enabled: true, message: 'Server has restarted successfully!' }
-    }
   };
   return '# SwagRestartScheduler - Main Configuration\n# Generated by Config Editor\n\n' + toYaml(cfg);
 }
@@ -1667,6 +2051,9 @@ function renderAll() {
   renderPerformance();
   renderCommands();
   renderBackup();
+  renderEventBus();
+  renderCrashLoop();
+  renderDiscord();
 }
 
 // ============================================================
