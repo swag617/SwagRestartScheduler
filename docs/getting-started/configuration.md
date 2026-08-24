@@ -16,11 +16,9 @@ Run `/srestart reload` after editing any of them to apply changes without restar
 general:
   use-spigot-restart: true
   log-prefix: "[SwagRestartScheduler]"
-  check-interval-seconds: 10
 ```
 
 - `use-spigot-restart` — when `true`, restarts call `Bukkit.getServer().spigot().restart()` (requires a wrapper script/launcher that respects the restart exit code). If that call throws, the plugin automatically falls back to `getServer().shutdown()`. When `false`, it goes straight to `shutdown()`.
-- `check-interval-seconds` — cosmetic only; it does not affect warning timing precision (warnings fire on wall-clock time, not on this interval).
 
 ## `warnings`
 

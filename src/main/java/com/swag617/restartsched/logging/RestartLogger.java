@@ -190,9 +190,10 @@ public class RestartLogger {
     }
 
     /**
-     * Wraps a CSV field value in double-quotes if it contains a comma, a
-     * double-quote, or a newline.  Embedded double-quotes are escaped by
-     * doubling them (RFC 4180).
+     * Wraps every CSV field value in double-quotes unconditionally (simpler and safe,
+     * rather than only quoting when a comma/quote/newline is present). Embedded
+     * double-quotes are escaped by doubling them (RFC 4180) — the result is valid CSV
+     * either way.
      *
      * @param value the raw field value; may be {@code null}
      * @return the escaped CSV field string

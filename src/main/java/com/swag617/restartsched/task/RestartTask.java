@@ -74,6 +74,26 @@ public class RestartTask extends BukkitRunnable {
     private boolean gracePeriodUsed = false;
 
     /**
+     * The pending one-shot {@link BukkitTask} scheduled by {@link #checkGraceOrRestart()}
+     * while a grace-period delay is in progress, or {@code null} if none is currently
+     * pending. Captured so {@link #cancelTask()} can actually cancel it — without this,
+     * cancelling the outer per-tick runnable (already inert during a grace delay) leaves
+     * this callback live, and it will eventually fire and execute the restart regardless
+     * of the cancellation.
+     */
+    private volatile org.bukkit.scheduler.BukkitTask pendingGraceRecheck = null;
+
+    /**
+     * Set by {@link #cancelTask()}. Checked at the very top of
+     * {@link #checkGraceOrRestart()} as a second layer of defense: even if a recheck
+     * callback is somehow already off the main thread's call stack and mid-execution
+     * when {@link #cancelTask()} runs (both run on the main thread in practice, but this
+     * guard costs nothing and removes any doubt), it refuses to schedule another recheck
+     * or execute the restart once the task has been cancelled.
+     */
+    private volatile boolean aborted = false;
+
+    /**
      * @param plugin                plugin instance
      * @param millisUntil           milliseconds from now until restart
      * @param reason                human-readable reason string
@@ -149,6 +169,26 @@ public class RestartTask extends BukkitRunnable {
      * Safe to call multiple times.
      */
     public void cancelTask() {
+        // First layer of defense: flip the abort flag so checkGraceOrRestart() refuses to
+        // do anything further (reschedule itself or execute the restart) even if it is
+        // somehow invoked again after this point.
+        aborted = true;
+
+        // Second layer: actually cancel the pending one-shot grace-recheck callback, if
+        // one is currently scheduled. Cancelling the outer per-tick runnable below is a
+        // no-op while a grace delay is in progress (it was already self-cancelled by
+        // checkGraceOrRestart()) — without this, that orphaned callback stays live and
+        // will eventually fire and execute the restart regardless of this cancellation.
+        org.bukkit.scheduler.BukkitTask pending = pendingGraceRecheck;
+        if (pending != null) {
+            pendingGraceRecheck = null;
+            try {
+                pending.cancel();
+            } catch (IllegalStateException ignored) {
+                // Already cancelled/run — safe to ignore
+            }
+        }
+
         // Cancel pre-restart commands
         if (plugin.getPreRestartCommandExecutor() != null) {
             plugin.getPreRestartCommandExecutor().cancelAll();
@@ -201,6 +241,11 @@ public class RestartTask extends BukkitRunnable {
      * If no delay is needed (or grace period is disabled), executes the restart.
      */
     private void checkGraceOrRestart() {
+        // Cancelled (via cancelTask()) since this recheck was scheduled — do nothing.
+        // Checked first, before any other side effect, so a cancelled task can never
+        // reschedule itself again or execute the restart.
+        if (aborted) return;
+
         // The countdown has reached zero — the final-10-seconds boss bar (if any) is no
         // longer relevant on this pass: either the restart executes now, or a grace-period
         // delay begins and the per-second ticks driving the bar stop firing until (if ever)
@@ -220,8 +265,12 @@ public class RestartTask extends BukkitRunnable {
             if (!isCancelled()) {
                 try { cancel(); } catch (IllegalStateException ignored) { }
             }
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                if (!executed) {
+            // Capture the returned task so cancelTask() can actually cancel this pending
+            // recheck — previously it was discarded, leaving the callback live even after
+            // this whole RestartTask was supposedly cancelled (see field javadoc).
+            pendingGraceRecheck = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                pendingGraceRecheck = null;
+                if (!executed && !aborted) {
                     checkGraceOrRestart();
                 }
             }, delayTicks);

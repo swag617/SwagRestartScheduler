@@ -167,14 +167,14 @@ public class ScheduleEditorGUI implements BaseGUI {
                 // Save & Close
                 saveToFile();
                 plugin.getScheduleManager().reload();
-                player.sendMessage(MM.deserialize(
-                    "<green>Schedule <white>" + scheduleName + "</white> saved."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<green>Schedule <white>" + scheduleName + "</white> saved."));
                 plugin.getGUIManager().unregister(player);
                 parent.open(player);
             }
             case 34 -> {
                 // Discard
-                player.sendMessage(MM.deserialize("<yellow>Changes discarded."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix() + "<yellow>Changes discarded."));
                 plugin.getGUIManager().unregister(player);
                 parent.open(player);
             }

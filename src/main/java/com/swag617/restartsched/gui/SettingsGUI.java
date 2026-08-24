@@ -74,8 +74,8 @@ public class SettingsGUI implements BaseGUI {
                 plugin.getConfig().set("warnings.enabled", !current);
                 plugin.saveConfig();
                 plugin.getWarningManager().reload();
-                player.sendMessage(MM.deserialize(
-                    "<gray>Warning system " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<gray>Warning system " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
                 // Refresh item
                 inventory.setItem(11, buildWarningToggleItem());
             }
@@ -85,9 +85,11 @@ public class SettingsGUI implements BaseGUI {
                     plugin.getConfigManager().reload();
                     plugin.getWarningManager().reload();
                     plugin.getScheduleManager().reload();
-                    player.sendMessage(MM.deserialize("<green>Configuration reloaded successfully."));
+                    player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                        + "<green>Configuration reloaded successfully."));
                 } catch (Exception e) {
-                    player.sendMessage(MM.deserialize("<red>Reload failed: <white>" + e.getMessage()));
+                    player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                        + "<red>Reload failed: <white>" + e.getMessage()));
                 }
                 // Refresh next restart info
                 inventory.setItem(15, buildNextRestartItem());

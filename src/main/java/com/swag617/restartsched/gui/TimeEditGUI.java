@@ -93,8 +93,8 @@ public class TimeEditGUI implements BaseGUI {
             plugin.getGUIManager().unregister(player);
             player.closeInventory();
 
-            player.sendMessage(MM.deserialize(
-                "<gray>Type a time <white>(HH:mm)</white> in chat to add it. " +
+            player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                + "<gray>Type a time <white>(HH:mm)</white> in chat to add it. " +
                 "Type <red>'cancel'</red> to abort."));
 
             plugin.getChatInputListener().registerInput(player.getUniqueId(), input -> {
@@ -104,18 +104,18 @@ public class TimeEditGUI implements BaseGUI {
                         if (!times.contains(parsed)) {
                             times.add(parsed);
                             times.sort(LocalTime::compareTo);
-                            player.sendMessage(MM.deserialize(
-                                "<green>Added time <white>" + parsed.format(TIME_FMT) + "</white>."));
+                            player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                                + "<green>Added time <white>" + parsed.format(TIME_FMT) + "</white>."));
                         } else {
-                            player.sendMessage(MM.deserialize(
-                                "<yellow>That time is already in the list."));
+                            player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                                + "<yellow>That time is already in the list."));
                         }
                     } catch (DateTimeParseException e) {
-                        player.sendMessage(MM.deserialize(
-                            "<red>Invalid time format. Use <white>HH:mm</white> (24-hour), e.g. <white>03:00</white>."));
+                        player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                            + "<red>Invalid time format. Use <white>HH:mm</white> (24-hour), e.g. <white>03:00</white>."));
                     }
                 } else {
-                    player.sendMessage(MM.deserialize("<gray>Add time cancelled."));
+                    player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix() + "<gray>Add time cancelled."));
                 }
                 // Reopen the GUI after handling input
                 open(player);
@@ -128,8 +128,8 @@ public class TimeEditGUI implements BaseGUI {
             int index = slot - TIME_SLOT_START;
             if (index < times.size()) {
                 LocalTime removed = times.remove(index);
-                player.sendMessage(MM.deserialize(
-                    "<red>Removed time <white>" + removed.format(TIME_FMT) + "</white>."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<red>Removed time <white>" + removed.format(TIME_FMT) + "</white>."));
                 // Refresh the GUI in place
                 repopulate();
             }

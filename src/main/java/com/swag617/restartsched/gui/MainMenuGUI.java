@@ -132,26 +132,26 @@ public class MainMenuGUI implements BaseGUI {
     private void promptCreateSchedule(Player player) {
         plugin.getGUIManager().unregister(player);
         player.closeInventory();
-        player.sendMessage(MM.deserialize(
-            "<yellow>Type a name for the new schedule in chat. "
+        player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+            + "<yellow>Type a name for the new schedule in chat. "
             + "<gray>(letters, numbers, '-' and '_' only; type <red>'cancel'</red> to abort)"));
 
         plugin.getChatInputListener().registerInput(player.getUniqueId(), input -> {
             String trimmed = input.trim();
 
             if (trimmed.equalsIgnoreCase("cancel")) {
-                player.sendMessage(MM.deserialize("<gray>Schedule creation cancelled."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix() + "<gray>Schedule creation cancelled."));
                 open(player);
                 return;
             }
             if (trimmed.isBlank()) {
-                player.sendMessage(MM.deserialize("<red>Name cannot be blank."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix() + "<red>Name cannot be blank."));
                 open(player);
                 return;
             }
             if (!trimmed.matches("[A-Za-z0-9_-]+")) {
-                player.sendMessage(MM.deserialize(
-                    "<red>Invalid name — only letters, numbers, '-' and '_' are allowed "
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<red>Invalid name — only letters, numbers, '-' and '_' are allowed "
                     + "(no spaces, dots, or colons)."));
                 open(player);
                 return;
@@ -159,8 +159,8 @@ public class MainMenuGUI implements BaseGUI {
             boolean duplicate = plugin.getScheduleManager().getSchedules().stream()
                     .anyMatch(s -> s.getName().equalsIgnoreCase(trimmed));
             if (duplicate) {
-                player.sendMessage(MM.deserialize(
-                    "<red>A schedule named <white>" + trimmed + "</white> already exists."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<red>A schedule named <white>" + trimmed + "</white> already exists."));
                 open(player);
                 return;
             }
@@ -231,6 +231,7 @@ public class MainMenuGUI implements BaseGUI {
         if (inventory != null) {
             inventory.setItem(22, GuiItems.make(Material.BOOK, "<yellow>Restart Logs", lore));
         }
-        player.sendMessage(MM.deserialize("<gray>Log entries loaded — hover the <white>Restart Logs</white> item to read."));
+        player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+            + "<gray>Log entries loaded — hover the <white>Restart Logs</white> item to read."));
     }
 }

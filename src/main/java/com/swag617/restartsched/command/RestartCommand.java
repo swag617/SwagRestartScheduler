@@ -119,7 +119,7 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
         broadcastAll(broadcastRaw);
 
         // Log-level message to console / sender
-        String consoleMsg = getMessageRaw("restart-initiated-console")
+        String consoleMsg = getMessage("restart-initiated-console")
                 .replace("{initiator}", initiator)
                 .replace("{reason}", reason);
         plugin.getLogger().info(MM.stripTags(consoleMsg));
@@ -170,7 +170,7 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
         send(sender, senderMsg);
 
         // Broadcast to all
-        String broadcastRaw = getMessageRaw("broadcast-restart-in").replace("{time}", humanTime);
+        String broadcastRaw = getMessage("broadcast-restart-in").replace("{time}", humanTime);
         broadcastAll(broadcastRaw);
     }
 
@@ -183,7 +183,7 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
         boolean cancelled = plugin.getScheduleManager().cancelManualTask();
         if (cancelled) {
             send(sender, getMessage("cancel-success"));
-            broadcastAll(getMessageRaw("broadcast-cancelled"));
+            broadcastAll(getMessage("broadcast-cancelled"));
         } else {
             send(sender, getMessage("cancel-no-pending"));
         }
@@ -204,7 +204,7 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
                 long          millis   = time.toInstant().toEpochMilli() - System.currentTimeMillis();
                 String        duration = ScheduleManager.formatDuration(millis);
                 String        source   = next.get().schedule().getName();
-                String msg = getMessageRaw("status-pending")
+                String msg = getMessage("status-pending")
                         .replace("{time}", timeStr + " (in " + duration + ")")
                         .replace("{source}", source);
                 send(sender, msg, true);
@@ -214,7 +214,7 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
 
         long   millis   = active.getMillisRemaining();
         String duration = ScheduleManager.formatDuration(millis);
-        String msg = getMessageRaw("status-pending")
+        String msg = getMessage("status-pending")
                 .replace("{time}", "in " + duration)
                 .replace("{source}", active.getSourceName()
                         + (active.isManual() ? " [manual]" : " [scheduled]"));
@@ -243,7 +243,7 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
                     .map(zdt -> zdt.format(DISPLAY_FMT))
                     .orElse("none");
 
-            String line = getMessageRaw("schedules-entry")
+            String line = getMessage("schedules-entry")
                     .replace("{name}",     sched.getName())
                     .replace("{enabled}",  String.valueOf(sched.isEnabled()))
                     .replace("{timezone}", sched.getTimezone().getId())
@@ -446,17 +446,13 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Returns a message with the configured prefix prepended.
+     * Returns a raw MiniMessage string from {@code messages.yml}, without the configured
+     * prefix prepended. Callers that display the result directly should route it through
+     * {@link #send(CommandSender, String)} (which adds the prefix); callers that first do
+     * further {@code {placeholder}} replacement can call this and pass the result to
+     * {@link #send(CommandSender, String, boolean)} or {@link #broadcastAll(String)}.
      */
     private String getMessage(String key) {
-        return plugin.getConfigManager().getMessage(key, false);
-    }
-
-    /**
-     * Returns a raw MiniMessage string without prefix, for use in
-     * further string replacement before sending.
-     */
-    private String getMessageRaw(String key) {
         return plugin.getConfigManager().getMessage(key, false);
     }
 

@@ -68,8 +68,8 @@ public class BackupGUI implements BaseGUI {
                 plugin.saveConfig();
                 plugin.getBackupManager().reload();
                 inventory.setItem(10, buildEnabledToggleItem());
-                player.sendMessage(MM.deserialize(
-                    "<gray>Backup system " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<gray>Backup system " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
             }
             case 12 -> {
                 // Toggle backup.maintenance_mode
@@ -78,8 +78,8 @@ public class BackupGUI implements BaseGUI {
                 plugin.saveConfig();
                 plugin.getBackupManager().reload();
                 inventory.setItem(12, buildMaintenanceModeItem());
-                player.sendMessage(MM.deserialize(
-                    "<gray>Maintenance mode " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<gray>Maintenance mode " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
             }
             case 14 -> {
                 // Toggle backup.compress
@@ -88,24 +88,26 @@ public class BackupGUI implements BaseGUI {
                 plugin.saveConfig();
                 plugin.getBackupManager().reload();
                 inventory.setItem(14, buildCompressItem());
-                player.sendMessage(MM.deserialize(
-                    "<gray>Compression " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<gray>Compression " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
             }
             case 16 -> {
                 // Edit max_backups via chat input
-                player.sendMessage(MM.deserialize(
-                    "<yellow>Type the new max backups value in chat. <gray>(0 = keep forever, current: "
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<yellow>Type the new max backups value in chat. <gray>(0 = keep forever, current: "
                     + "<white>" + plugin.getConfig().getInt("backup.max_backups", 5) + "<gray>)"));
                 plugin.getChatInputListener().registerInput(player.getUniqueId(), input -> {
                     int value;
                     try {
                         value = Integer.parseInt(input.trim());
                     } catch (NumberFormatException ex) {
-                        player.sendMessage(MM.deserialize("<red>Invalid number: <white>" + input));
+                        player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                            + "<red>Invalid number: <white>" + input));
                         return;
                     }
                     if (value < 0) {
-                        player.sendMessage(MM.deserialize("<red>Value must be 0 or greater."));
+                        player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                            + "<red>Value must be 0 or greater."));
                         return;
                     }
                     plugin.getConfig().set("backup.max_backups", value);
@@ -114,8 +116,8 @@ public class BackupGUI implements BaseGUI {
                     if (inventory != null) {
                         inventory.setItem(16, buildMaxBackupsItem());
                     }
-                    player.sendMessage(MM.deserialize(
-                        "<green>Max backups set to <white>" + value + "<green>."));
+                    player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                        + "<green>Max backups set to <white>" + value + "<green>."));
                 });
             }
             case 22 -> {

@@ -7,9 +7,6 @@ general:
   use-spigot-restart: true
   # Message prefix shown in console log lines
   log-prefix: "[SwagRestartScheduler]"
-  # How often (in seconds) the scheduler checks for upcoming restarts
-  # This does not affect warning precision — warnings are wall-clock accurate
-  check-interval-seconds: 10
 
 # Warning broadcast configuration
 warnings:

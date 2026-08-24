@@ -240,11 +240,6 @@ public class ConfigManager {
      * Logs warnings for invalid values but does not throw — the defaults cover us.
      */
     private void validate(FileConfiguration config) {
-        int checkInterval = config.getInt("general.check-interval-seconds", 10);
-        if (checkInterval < 1) {
-            logger.warning("general.check-interval-seconds is < 1 — using 10.");
-        }
-
         int abThreshold = config.getInt("warnings.action-bar-threshold", 60);
         if (abThreshold < 0) {
             logger.warning("warnings.action-bar-threshold is negative — action bar disabled.");

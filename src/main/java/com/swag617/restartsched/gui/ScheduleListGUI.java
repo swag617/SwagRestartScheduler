@@ -230,8 +230,8 @@ public class ScheduleListGUI implements BaseGUI {
         plugin.getConfigManager().saveConfig(cfg, plugin.getConfigManager().getSchedulesFile());
         plugin.getScheduleManager().reload();
 
-        player.sendMessage(MM.deserialize(
-            "<gray>Schedule <white>" + schedule.getName() + "</white> "
+        player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+            + "<gray>Schedule <white>" + schedule.getName() + "</white> "
             + (newState ? "<green>enabled" : "<red>disabled") + "<gray>."));
 
         // Refresh this GUI with updated data
@@ -252,8 +252,8 @@ public class ScheduleListGUI implements BaseGUI {
         player.closeInventory();
 
         String name = schedule.getName();
-        player.sendMessage(MM.deserialize(
-            "<red>Type <white>CONFIRM</white> in chat to permanently delete schedule <white>"
+        player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+            + "<red>Type <white>CONFIRM</white> in chat to permanently delete schedule <white>"
             + name + "</white>. <gray>Type anything else to cancel."));
 
         plugin.getChatInputListener().registerInput(player.getUniqueId(), input -> {
@@ -262,10 +262,10 @@ public class ScheduleListGUI implements BaseGUI {
                 cfg.set("schedules." + name, null);
                 plugin.getConfigManager().saveConfig(cfg, plugin.getConfigManager().getSchedulesFile());
                 plugin.getScheduleManager().reload();
-                player.sendMessage(MM.deserialize(
-                    "<green>Schedule <white>" + name + "</white> deleted."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
+                    + "<green>Schedule <white>" + name + "</white> deleted."));
             } else {
-                player.sendMessage(MM.deserialize("<gray>Deletion cancelled."));
+                player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix() + "<gray>Deletion cancelled."));
             }
             open(player);
         });
