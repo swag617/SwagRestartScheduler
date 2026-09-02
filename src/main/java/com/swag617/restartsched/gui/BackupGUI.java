@@ -92,7 +92,14 @@ public class BackupGUI implements BaseGUI {
                     + "<gray>Compression " + (!current ? "<green>enabled" : "<red>disabled") + "<gray>."));
             }
             case 16 -> {
-                // Edit max_backups via chat input
+                // Edit max_backups via chat input — close the inventory first so the
+                // player's client actually lets them open the chat box (a GUI holds
+                // keyboard focus and blocks chat entirely otherwise; mirrors the
+                // close-before-registerInput pattern used by MainMenuGUI, ScheduleListGUI,
+                // and TimeEditGUI).
+                plugin.getGUIManager().unregister(player);
+                player.closeInventory();
+
                 player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
                     + "<yellow>Type the new max backups value in chat. <gray>(0 = keep forever, current: "
                     + "<white>" + plugin.getConfig().getInt("backup.max_backups", 5) + "<gray>)"));
@@ -103,21 +110,21 @@ public class BackupGUI implements BaseGUI {
                     } catch (NumberFormatException ex) {
                         player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
                             + "<red>Invalid number: <white>" + input));
+                        open(player);
                         return;
                     }
                     if (value < 0) {
                         player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
                             + "<red>Value must be 0 or greater."));
+                        open(player);
                         return;
                     }
                     plugin.getConfig().set("backup.max_backups", value);
                     plugin.saveConfig();
                     plugin.getBackupManager().reload();
-                    if (inventory != null) {
-                        inventory.setItem(16, buildMaxBackupsItem());
-                    }
                     player.sendMessage(MM.deserialize(plugin.getConfigManager().getPrefix()
                         + "<green>Max backups set to <white>" + value + "<green>."));
+                    open(player);
                 });
             }
             case 22 -> {

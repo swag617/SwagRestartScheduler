@@ -393,27 +393,35 @@ public class RestartCommand implements CommandExecutor, TabCompleter {
         long total = 0;
         StringBuilder num = new StringBuilder();
 
-        for (char c : input.toLowerCase().toCharArray()) {
-            if (Character.isDigit(c)) {
-                num.append(c);
-            } else if (c == 'h' || c == 'm' || c == 's') {
-                if (num.isEmpty()) return -1;
-                long value = Long.parseLong(num.toString());
-                num.setLength(0);
-                total += switch (c) {
-                    case 'h' -> value * 3600;
-                    case 'm' -> value * 60;
-                    case 's' -> value;
-                    default  -> 0;
-                };
-            } else {
-                return -1; // unexpected character
+        try {
+            for (char c : input.toLowerCase().toCharArray()) {
+                if (Character.isDigit(c)) {
+                    num.append(c);
+                } else if (c == 'h' || c == 'm' || c == 's') {
+                    if (num.isEmpty()) return -1;
+                    long value = Long.parseLong(num.toString());
+                    num.setLength(0);
+                    total += switch (c) {
+                        case 'h' -> value * 3600;
+                        case 'm' -> value * 60;
+                        case 's' -> value;
+                        default  -> 0;
+                    };
+                } else {
+                    return -1; // unexpected character
+                }
             }
-        }
 
-        // Trailing digits with no unit — treat as seconds
-        if (!num.isEmpty()) {
-            total += Long.parseLong(num.toString());
+            // Trailing digits with no unit — treat as seconds
+            if (!num.isEmpty()) {
+                total += Long.parseLong(num.toString());
+            }
+        } catch (NumberFormatException e) {
+            // A digit run too long for a long (e.g. a fat-fingered extra zero or two) would
+            // otherwise throw here uncaught, surfacing as an ugly "internal error" to the
+            // sender instead of the normal "bad format" message — treat it the same as any
+            // other invalid input.
+            return -1;
         }
 
         return total > 0 ? total : -1;
