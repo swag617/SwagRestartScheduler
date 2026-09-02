@@ -13,21 +13,31 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    /* Aligned to the SwagAPI dashboard / SwagFishing editor's brand palette —
-       same token roles as this file always had, values swapped to match. */
-    --bg:       #16161c;
-    --card:     #1c1c24;
-    --surface2: #24242f;
-    --accent:   #667eea;
-    --accent2:  #764ba2;
-    --text:     #e4e4ea;
-    --muted:    #8b8b96;
-    --border:   #2a2a35;
-    --input:    #16161c;
-    --success:  #5fe05f;
-    --danger:   #ec5f5f;
-    --radius:   6px;
-    --font:     'Inter', 'Segoe UI', system-ui, sans-serif;
+    /* Aligned to SwagCore's dashboard token set (src/main/resources/web/dashboard/style.css) —
+       the flagship/most complete implementation the other Swag panels are meant to match.
+       Same token names AND values, not just similar colors. */
+    --bg:            #16161c;
+    --bg-card:       #1c1c24;
+    --bg-sidebar:    #1e1e27;
+    --bg-row-alt:    #1f1f29;
+    --bg-active:     #201a33;
+    --border:        #2a2a35;
+    --border-dim:    #24242e;
+    --border-accent: rgba(118,75,162,.4);
+    --blue:          #667eea;
+    --purple:        #764ba2;
+    --purple-muted:  #9b8ec4;
+    --grad:          linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --text:          #e4e4ea;
+    --text-muted:    #8b8b96;
+    --text-dim:      #5c5c68;
+    --gold:          #f0c060;
+    --green:         #5fe05f;
+    --danger:        #ec5f5f;
+    --chip-bg:       #24242f;
+    --radius:        8px;
+    --font:          'Inter', 'Segoe UI', system-ui, sans-serif;
+    --mono:          'JetBrains Mono', monospace;
   }
 
   html { font-size: 15px; }
@@ -41,10 +51,14 @@
     padding: 0 0 60px;
   }
 
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 4px; }
+
   /* ---- Header ---- */
   header {
-    background: var(--card);
-    border-bottom: 2px solid var(--accent);
+    background: var(--bg-sidebar);
+    border-bottom: 2px solid var(--purple);
     padding: 14px 24px;
     display: flex;
     align-items: center;
@@ -54,13 +68,13 @@
     z-index: 100;
   }
   header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: .5px; }
-  header span.version { color: var(--muted); font-size: .8rem; }
+  header span.version { color: var(--text-muted); font-size: .8rem; font-family: var(--mono); }
   .header-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
   /* ---- Tab nav ---- */
   nav.tabs {
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-dim);
     display: flex;
     overflow-x: auto;
     padding: 0 16px;
@@ -68,8 +82,8 @@
   nav.tabs button {
     background: none;
     border: none;
-    border-bottom: 3px solid transparent;
-    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
     cursor: pointer;
     font-size: .9rem;
     padding: 12px 18px;
@@ -77,7 +91,7 @@
     white-space: nowrap;
   }
   nav.tabs button:hover { color: var(--text); }
-  nav.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  nav.tabs button.active { color: var(--blue); border-bottom-color: var(--purple); }
 
   /* ---- Main content ---- */
   main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
@@ -87,14 +101,16 @@
 
   /* ---- Cards ---- */
   .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: 10px;
     margin-bottom: 16px;
     overflow: hidden;
+    transition: border-color .15s;
   }
+  .card:hover { border-color: var(--border-accent); }
   .card-header {
-    background: var(--surface2);
+    background: var(--chip-bg);
     padding: 10px 16px;
     display: flex;
     align-items: center;
@@ -113,13 +129,13 @@
     gap: 10px;
     margin-bottom: 10px;
   }
-  .field-row label { color: var(--muted); font-size: .85rem; }
+  .field-row label { color: var(--text-muted); font-size: .85rem; }
 
   input[type="text"],
   input[type="number"],
   select,
   textarea {
-    background: var(--input);
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--text);
@@ -128,18 +144,23 @@
     padding: 6px 10px;
     width: 100%;
     outline: none;
-    transition: border-color .15s;
+    transition: border-color .15s, box-shadow .15s;
   }
   input:focus, select:focus, textarea:focus {
-    border-color: var(--accent);
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(118,75,162,.15);
   }
   textarea { resize: vertical; min-height: 60px; }
 
   input[type="checkbox"] {
-    accent-color: var(--accent);
+    accent-color: var(--blue);
     width: 16px; height: 16px;
     cursor: pointer;
   }
+
+  /* Literal Minecraft commands read better monospaced, matching the ecosystem's
+     convention of using --mono for code/technical text (frame-row inputs, timestamps). */
+  input[data-field="command"] { font-family: var(--mono); }
 
   /* ---- Buttons ---- */
   .btn {
@@ -150,26 +171,27 @@
     font-size: .85rem;
     font-weight: 600;
     padding: 7px 14px;
-    transition: background .15s, transform .1s;
+    transition: background .15s, transform .1s, box-shadow .15s, border-color .15s, color .15s;
   }
   .btn:active { transform: scale(.97); }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: var(--accent2); }
-  .btn-secondary { background: var(--surface2); color: var(--text); }
-  .btn-secondary:hover { background: #164080; }
+  .btn-primary { background: var(--grad); color: #fff; }
+  .btn-primary:hover { box-shadow: 0 6px 18px rgba(102,126,234,.35); transform: translateY(-1px); }
+  .btn-secondary { background: var(--chip-bg); color: var(--text-muted); border: 1px solid var(--border-dim); }
+  .btn-secondary:hover { color: var(--text); border-color: var(--border-accent); }
   .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
   .btn-danger:hover { background: var(--danger); color: #fff; }
   .btn-sm { padding: 4px 9px; font-size: .78rem; }
-  .btn-success { background: #1f6b44; color: var(--success); }
+  .btn-success { background: #1f6b44; color: var(--green); }
   .btn-success:hover { background: #217d51; }
 
   /* ---- List items ---- */
   .list-item {
-    background: var(--input);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--bg);
+    border: 1px solid var(--border-dim);
+    border-radius: 10px;
     margin-bottom: 10px;
     overflow: hidden;
+    transition: border-color .15s;
   }
   .list-item-header {
     display: flex;
@@ -181,8 +203,8 @@
     user-select: none;
   }
   .list-item-header .item-title { flex: 1; font-weight: 600; font-size: .9rem; }
-  .list-item-body { padding: 14px 12px; border-top: 1px solid var(--border); }
-  .collapse-indicator { color: var(--muted); font-size: .75rem; }
+  .list-item-body { padding: 14px 12px; border-top: 1px solid var(--border-dim); }
+  .collapse-indicator { color: var(--text-muted); font-size: .75rem; }
 
   /* ---- Days checkboxes ---- */
   .days-grid {
@@ -195,22 +217,23 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    background: var(--surface2);
+    background: var(--chip-bg);
     border-radius: 20px;
     padding: 4px 12px;
     font-size: .82rem;
     cursor: pointer;
     user-select: none;
     border: 1px solid transparent;
-    transition: border-color .12s;
+    transition: border-color .12s, background .12s, color .12s;
   }
-  .day-chip.selected { border-color: var(--accent); color: var(--accent); }
+  .day-chip:hover { border-color: var(--border-accent); }
+  .day-chip.selected { border-color: var(--purple); background: var(--bg-active); color: var(--purple-muted); }
   .day-chip input { display: none; }
 
   /* ---- Times list ---- */
   .times-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .time-chip {
-    background: var(--surface2);
+    background: var(--chip-bg);
     border-radius: 14px;
     padding: 3px 10px;
     font-size: .82rem;
@@ -219,7 +242,7 @@
     gap: 6px;
   }
   .time-chip .remove-time {
-    color: var(--muted);
+    color: var(--text-muted);
     cursor: pointer;
     font-size: .9rem;
     line-height: 1;
@@ -240,8 +263,9 @@
     position: fixed;
     bottom: 24px;
     right: 24px;
-    background: var(--surface2);
-    border-left: 4px solid var(--accent);
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-left: 4px solid var(--blue);
     border-radius: var(--radius);
     color: var(--text);
     font-size: .88rem;
@@ -253,17 +277,18 @@
     z-index: 9999;
   }
   #toast.show { opacity: 1; }
-  #toast.success { border-color: var(--success); }
-  #toast.error   { border-color: var(--danger); }
+  #toast.success { border-left-color: var(--green); }
+  #toast.error   { border-left-color: var(--danger); }
 
   /* ---- Misc ---- */
-  hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  hr { border: none; border-top: 1px solid var(--border-dim); margin: 14px 0; }
   .section-label {
     font-size: .78rem;
     font-weight: 700;
     letter-spacing: .08em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--text-muted);
+    font-family: var(--mono);
     margin-bottom: 8px;
   }
   .add-row { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
@@ -785,9 +810,17 @@ fetch('/swagapi/auth/status', {credentials: 'include'})
   })
   .catch(function() {});
 
+// API_BASE is derived from the current directory this page was served from (e.g.
+// "/swagapi/swagrestartscheduler/") so requests resolve correctly regardless of what prefix
+// SwagAPI's IWebService mounts this module under. A bare "/api/..." fetch is instead an
+// absolute root-relative path — it would hit the shared server's own "/" catch-all (which
+// 301-redirects to /home) rather than this plugin's WebEditorHttpHandler. Same pattern as
+// SwagMenus' webeditor/index.html.
+var API_BASE = window.location.pathname.replace(/[^/]*$/, '');
+
 // Central fetch helper, used for every request to this plugin's own backend
-// (GET/POST /api/config, POST /api/schedules — see WebEditorHttpHandler.java) so an
-// expired session bounces the user to the shared login page instead of failing silently.
+// (GET/POST API_BASE+"api/config", POST API_BASE+"api/schedules" — see WebEditorHttpHandler.java)
+// so an expired session bounces the user to the shared login page instead of failing silently.
 function apiFetch(path, options) {
   var opts = options || {};
   opts.credentials = 'include';
@@ -1204,15 +1237,14 @@ function buildScheduleItem(sched) {
     renderSchedules();
   });
 
-  // Day chips
+  // Day chips — a click anywhere on a <label class="day-chip"> is natively forwarded by
+  // the browser to its wrapped (hidden, display:none) <input>, which toggles it and fires
+  // exactly one 'change' event. That's the single source of truth here. (Previously a
+  // 'click' listener on the chip ALSO manually toggled cb.checked before the native
+  // forwarding ran, so every click double-toggled and canceled itself out — confirmed live:
+  // clicking a day chip left state.schedules[].days and the checkbox's checked value both
+  // completely unchanged. Chips looked totally unresponsive.)
   wrap.querySelectorAll('.day-chip').forEach(function(chip) {
-    chip.addEventListener('click', function(e) {
-      if (e.target.tagName === 'INPUT') return; // let default tick, handle below
-      var cb = chip.querySelector('input');
-      cb.checked = !cb.checked;
-      toggleDay(sched, chip.dataset.day, cb.checked);
-      chip.classList.toggle('selected', cb.checked);
-    });
     chip.querySelector('input').addEventListener('change', function(e) {
       toggleDay(sched, chip.dataset.day, e.target.checked);
       chip.classList.toggle('selected', e.target.checked);
@@ -2038,7 +2070,7 @@ function saveToServer() {
   var schedObj = buildSchedulesObject();
   var msgObj   = buildMessagesObject();
 
-  apiFetch('/api/config', {
+  apiFetch(API_BASE + 'api/config', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(cfgObj)
@@ -2048,7 +2080,7 @@ function saveToServer() {
       return r.json();
     })
     .then(function() {
-      return apiFetch('/api/schedules', {
+      return apiFetch(API_BASE + 'api/schedules', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({schedules: schedObj})
@@ -2059,7 +2091,7 @@ function saveToServer() {
       return r.json();
     })
     .then(function() {
-      return apiFetch('/api/messages', {
+      return apiFetch(API_BASE + 'api/messages', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(msgObj)
@@ -2085,11 +2117,11 @@ function saveToServer() {
  */
 function loadFromServer() {
   Promise.all([
-    apiFetch('/api/config').then(function(r) {
+    apiFetch(API_BASE + 'api/config').then(function(r) {
       if (!r.ok) throw new Error('load failed (HTTP ' + r.status + ')');
       return r.json();
     }),
-    apiFetch('/api/messages').then(function(r) {
+    apiFetch(API_BASE + 'api/messages').then(function(r) {
       if (!r.ok) throw new Error('messages load failed (HTTP ' + r.status + ')');
       return r.json();
     })
@@ -2258,11 +2290,11 @@ function applyLocalOrDefaultsAndRender() {
 // these endpoints, or SwagAPI briefly unavailable).
 (function init() {
   Promise.all([
-    apiFetch('/api/config').then(function(r) {
+    apiFetch(API_BASE + 'api/config').then(function(r) {
       if (!r.ok) throw new Error('status ' + r.status);
       return r.json();
     }),
-    apiFetch('/api/messages').then(function(r) {
+    apiFetch(API_BASE + 'api/messages').then(function(r) {
       if (!r.ok) throw new Error('status ' + r.status);
       return r.json();
     })
