@@ -90,7 +90,7 @@ public class ConfigManager {
     public void reloadSchedules() {
         FileConfiguration prev = schedulesConfig;
         try {
-            schedulesConfig = loadYaml(schedulesFile, "schedules.yml");
+            schedulesConfig = loadYaml(schedulesFile, "schedules.yml", false);
         } catch (Exception e) {
             logger.warning("Failed to reload schedules.yml: " + e.getMessage() + " — retaining previous config.");
             schedulesConfig = prev;
@@ -105,7 +105,7 @@ public class ConfigManager {
     public void reloadMessages() {
         FileConfiguration prev = messagesConfig;
         try {
-            messagesConfig = loadYaml(messagesFile, "messages.yml");
+            messagesConfig = loadYaml(messagesFile, "messages.yml", true);
         } catch (Exception e) {
             logger.warning("Failed to reload messages.yml: " + e.getMessage() + " — retaining previous config.");
             messagesConfig = prev;
@@ -198,19 +198,26 @@ public class ConfigManager {
         plugin.reloadConfig();
         validate(plugin.getConfig());
 
-        // schedules.yml
+        // schedules.yml — NOT given a defaults overlay: it's a user-owned list of named
+        // schedules, not a flat set of settings. If the bundled example schedules (see
+        // src/main/resources/schedules.yml) were merged in as defaults, a schedule the
+        // admin deleted or disabled would keep reappearing, because Bukkit's
+        // getKeys()/get() fall through to the defaults layer for anything missing from
+        // the real file — this is exactly what caused the 3 PM restart to keep coming
+        // back after being removed.
         FileConfiguration prevSchedules = schedulesConfig;
         try {
-            schedulesConfig = loadYaml(schedulesFile, "schedules.yml");
+            schedulesConfig = loadYaml(schedulesFile, "schedules.yml", false);
         } catch (Exception e) {
             logger.warning("Failed to load schedules.yml: " + e.getMessage() + " — retaining previous config.");
             schedulesConfig = prevSchedules;
         }
 
-        // messages.yml
+        // messages.yml — defaults overlay is correct here: it's flat key/value strings,
+        // so newly added keys should fall back to the bundled default text.
         FileConfiguration prevMessages = messagesConfig;
         try {
-            messagesConfig = loadYaml(messagesFile, "messages.yml");
+            messagesConfig = loadYaml(messagesFile, "messages.yml", true);
         } catch (Exception e) {
             logger.warning("Failed to load messages.yml: " + e.getMessage() + " — retaining previous config.");
             messagesConfig = prevMessages;
@@ -218,18 +225,24 @@ public class ConfigManager {
     }
 
     /**
-     * Loads a YAML file from disk, using the bundled resource as a default-value
-     * overlay so that newly added keys always have sensible defaults.
+     * Loads a YAML file from disk, optionally using the bundled resource as a
+     * default-value overlay so that newly added keys always have sensible defaults.
+     *
+     * @param applyDefaults whether to merge in the bundled resource as a defaults
+     *                      layer. Must be {@code false} for files like schedules.yml
+     *                      where a missing entry means "does not exist", not
+     *                      "fall back to the shipped example".
      */
-    private FileConfiguration loadYaml(File file, String resourceName) {
+    private FileConfiguration loadYaml(File file, String resourceName, boolean applyDefaults) {
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
 
-        // Apply defaults from the bundled resource
-        InputStream defaults = plugin.getResource(resourceName);
-        if (defaults != null) {
-            YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(
-                    new InputStreamReader(defaults, StandardCharsets.UTF_8));
-            config.setDefaults(defaultConfig);
+        if (applyDefaults) {
+            InputStream defaults = plugin.getResource(resourceName);
+            if (defaults != null) {
+                YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(
+                        new InputStreamReader(defaults, StandardCharsets.UTF_8));
+                config.setDefaults(defaultConfig);
+            }
         }
 
         return config;
