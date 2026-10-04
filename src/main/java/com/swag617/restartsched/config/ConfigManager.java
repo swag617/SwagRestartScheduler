@@ -1,5 +1,6 @@
 package com.swag617.restartsched.config;
 
+import com.SwagDev.SwagAPI.api.IConfigMigrationService;
 import com.SwagDev.SwagAPI.api.IPrefixService;
 import com.swag617.restartsched.SwagRestartScheduler;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -46,6 +47,11 @@ public class ConfigManager {
     // unchanged, exactly as before this integration existed.
     private IPrefixService prefixService;
 
+    // SwagAPI's shared config-migration service (hard dep, resolved once at startup). Merges
+    // newly-added keys from a bundled default into an existing on-disk file — see saveDefaults()
+    // below for which of this plugin's three config files it is (and is not) applied to.
+    private IConfigMigrationService configMigrationService;
+
     public ConfigManager(SwagRestartScheduler plugin) {
         this.plugin        = plugin;
         this.logger        = plugin.getLogger();
@@ -55,6 +61,10 @@ public class ConfigManager {
         ServicesManager sm = plugin.getServer().getServicesManager();
         RegisteredServiceProvider<IPrefixService> prefixProvider = sm.getRegistration(IPrefixService.class);
         this.prefixService = (prefixProvider != null) ? prefixProvider.getProvider() : null;
+
+        RegisteredServiceProvider<IConfigMigrationService> cfgMigProvider =
+                sm.getRegistration(IConfigMigrationService.class);
+        this.configMigrationService = (cfgMigProvider != null) ? cfgMigProvider.getProvider() : null;
     }
 
     // -------------------------------------------------------------------------
@@ -179,17 +189,28 @@ public class ConfigManager {
     // -------------------------------------------------------------------------
 
     private void saveDefaults() {
-        // config.yml — handled by Bukkit
+        // config.yml — handled by Bukkit, then SwagAPI migrates any new keys an update added
+        // into an already-existing on-disk file (saveDefaultConfig() alone only ever writes the
+        // bundled default once, on a genuinely fresh install).
         plugin.saveDefaultConfig();
+        if (configMigrationService != null) {
+            configMigrationService.migrate(plugin);
+        }
 
-        // schedules.yml
+        // schedules.yml — deliberately NOT run through the migration service. This file is a
+        // user-owned list of named schedules, not a flat settings file (see the comment on
+        // reloadAll() below) — merging missing keys back in would resurrect a schedule the
+        // admin deliberately deleted, the exact bug that comment already documents.
         if (!schedulesFile.exists()) {
             plugin.saveResource("schedules.yml", false);
         }
 
-        // messages.yml
+        // messages.yml — flat key/value strings, same shape as config.yml, safe to migrate.
         if (!messagesFile.exists()) {
             plugin.saveResource("messages.yml", false);
+        }
+        if (configMigrationService != null) {
+            configMigrationService.migrate(plugin, "messages.yml");
         }
     }
 
